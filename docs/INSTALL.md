@@ -31,22 +31,70 @@ node server/scripts/hash-password.mjs "DeinSicheresPasswort"
 Verbindungen bei jedem Neustart ungueltig. `ADMIN_PASSWORD_HASH` ist der
 empfohlene Weg; `ADMIN_PASSWORD` bleibt als einfacher Einstieg erhalten.
 
+### Wichtig: Dollarzeichen im scrypt-Hash
+
+Docker Compose ersetzt in `.env` jedes einfache `$` durch einen
+Variablenverweis. Ein scrypt-Hash besteht aus mehreren durch `$` getrennten
+Teilen. Beginnt ein Teil mit einem Buchstaben, wird er als Variablenname
+gelesen und durch einen leeren Wert ersetzt. Der Hash wird dadurch still
+abgeschnitten und die Anmeldung schlaegt fehl.
+
+In `.env` deshalb jedes `$` verdoppeln:
+
+```bash
+# Hash erzeugen
+node server/scripts/hash-password.mjs "DeinSicheresPasswort"
+# Ausgabe, zum Beispiel:
+#   scrypt$16384$8$1$<salt-hex>$<hash-hex>
+
+# In .env so eintragen (jedes $ verdoppelt):
+#   ADMIN_PASSWORD_HASH=scrypt$$16384$$8$$1$$<salt-hex>$$<hash-hex>
+```
+
+Schnellpruefung, dass der Wert vollstaendig ankommt:
+
+```bash
+docker compose -f docker-compose.standalone.yml exec quiz-arena \
+  sh -c 'echo ${#ADMIN_PASSWORD_HASH}'
+# Muss die volle Laenge des Hashes ausgeben, typisch 178.
+```
+
+Im Portainer-Formular unter *Environment variables* dagegen die **einfachen**
+Dollarzeichen eintragen. Dort ersetzt Portainer nichts, der Wert kommt
+unveraendert an.
+
 ## 3. Betrieb mit Docker Compose
+
+Das Image wird nicht mehr lokal gebaut. Beide Compose-Dateien laden
+`ghcr.io/dejowebdesign/34a-quiz-arena:latest` aus GitHub Container Registry.
+
+### Wann welche Datei
+
+| Datei | Verwenden wenn |
+| --- | --- |
+| `docker-compose.yml` | Ein Reverse Proxy im externen Docker-Netz `web` laeuft. Der Proxy erreicht den Container ueber `quiz-arena:3000`. Das ist der uebliche Dauerbetrieb. |
+| `docker-compose.standalone.yml` | Kein Netz `web` vorhanden ist. Typisch auf Umbrel und bei Portainer, wenn kein Proxy im selben Docker-Netz laeuft, sowie beim ersten Test. |
+
+Beide Dateien sind ansonsten gleich: gleiche Umgebungsvariablen, gleicher
+Healthcheck aus dem Image, gleiche Sicherheitsoption `no-new-privileges` und
+dasselbe Datenvolume `quiz-data`.
 
 ### Variante A: mit externem Proxy-Netz
 
 ```bash
-docker network create web
-docker compose up -d --build
+docker network create web     # einmalig, falls noch nicht vorhanden
+docker compose pull
+docker compose up -d
 ```
 
-Der Dienst verbindet sich mit dem Netz `web`, in dem auch der Reverse Proxy
-laeuft. Der veroeffentlichte Port `3000` kann dann entfernt werden.
+Ist der Proxy im selben Netz, kann der veroeffentlichte Port `3000` aus der
+Datei entfernt werden.
 
 ### Variante B: ohne externes Netz
 
 ```bash
-docker compose -f docker-compose.standalone.yml up -d --build
+docker compose -f docker-compose.standalone.yml pull
+docker compose -f docker-compose.standalone.yml up -d
 ```
 
 Aufruf unter `http://<server-ip>:3000`.
@@ -61,36 +109,95 @@ curl http://127.0.0.1:3000/api/health
 
 Die Antwort `{"status":"ok",...}` zeigt, dass der Dienst bereit ist.
 
+### Aktualisieren
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Das Volume `quiz-data` wird dabei nicht angefasst; Fragen und Zertifikate
+bleiben erhalten. Vor groesseren Updates trotzdem sichern, siehe Abschnitt 10.
+
 ## 4. Betrieb mit Portainer
 
-1. **Stack anlegen.** In Portainer auf *Stacks* → *Add stack*.
-2. **Repository waehlen.** Unter *Build method* „Repository“ auswaehlen und die
-   Git-Adresse sowie den Branch eintragen. Portainer klont das Projekt und
-   nutzt die `docker-compose.yml` im Wurzelverzeichnis.
-   Alternativ „Web editor“ waehlen und den Inhalt der `docker-compose.yml`
-   einfuegen; dann muss das Projekt vorher auf dem Server liegen.
-3. **Umgebungsvariablen setzen.** Im Abschnitt *Environment variables* die
-   Werte aus `.env` eintragen. Besonders wichtig:
+Portainer soll das Image nur herunterladen und starten, nicht selbst bauen.
+Dafuer ist in beiden Compose-Dateien kein `build`-Abschnitt mehr enthalten.
+
+### 4.1 Paket oeffentlich stellen
+
+Das GHCR-Paket ist nach dem ersten Push standardmaessig **privat**. Portainer
+kann es dann nur mit hinterlegten Zugangsdaten ziehen. Fuer den Betrieb ohne
+Anmeldung:
+
+1. Auf GitHub das Profil oeffnen und zu *Packages* wechseln.
+2. Das Paket `34a-quiz-arena` auswaehlen.
+3. *Package settings* → *Change visibility* → *Public* bestaetigen.
+
+Danach laesst sich das Image ohne Anmeldung ziehen. Pruefen mit:
+
+```bash
+docker pull ghcr.io/dejowebdesign/34a-quiz-arena:latest
+```
+
+Soll das Paket privat bleiben, in Portainer unter *Registries* einen Eintrag
+fuer `ghcr.io` anlegen:
+
+| Feld | Wert |
+| --- | --- |
+| Registry | `ghcr.io` |
+| Username | GitHub-Benutzername |
+| Password | Personal Access Token mit Berechtigung `read:packages` |
+
+Diesen Registry-Eintrag dann im Stack auswaehlen.
+
+### 4.2 Stack anlegen
+
+1. In Portainer auf *Stacks* → *Add stack*.
+2. Unter *Build method* die Option **Web editor** waehlen, damit Portainer
+   nichts klont und nichts baut.
+3. Den Inhalt der passenden Datei einfuegen: `docker-compose.yml` fuer den
+   Betrieb mit Netz `web`, sonst `docker-compose.standalone.yml`.
+   Die Standalone-Variante ist auf Umbrel der einfachere Weg.
+4. **Umgebungsvariablen setzen.** Im Abschnitt *Environment variables* die
+   Werte eintragen. Die Compose-Dateien lesen diese Variablen ueber
+   `${VAR:-...}`, deshalb genuegt es, sie in der Oberflaeche zu setzen; es wird
+   keine `.env`-Datei benoetigt.
 
    | Variable | Wert |
    | --- | --- |
    | `SESSION_SECRET` | Ergebnis von `openssl rand -hex 32` |
-   | `ADMIN_PASSWORD_HASH` | Ergebnis von `hash-password.mjs` |
+   | `ADMIN_PASSWORD_HASH` | Ergebnis von `hash-password.mjs`, hier mit **einfachen** `$` |
    | `ADMIN_USER` | z. B. `moderator` |
    | `NODE_ENV` | `production` |
    | `TRUST_PROXY` | `true` |
    | `COOKIE_SECURE` | `true`, sobald HTTPS aktiv ist |
 
-4. **Netzwerk.** Nutzt der Proxy ein bestehendes Docker-Netz, in Portainer
-   unter *Networks* ein Netz mit dem Namen `web` anlegen und im Stack
-   referenzieren. Ohne Proxy die `docker-compose.standalone.yml` verwenden.
-5. **Starten.** *Deploy the stack*. Portainer baut das Image und startet den
+   Hinweis: Im Portainer-Formular die einfachen `$` des Hashes verwenden, zum
+   Beispiel `scrypt$16384$8$1$...$...`. Nur in einer `.env`-Datei muessen die
+   `$` verdoppelt werden, siehe Abschnitt 2.
+
+5. **Netzwerk.** Bei `docker-compose.yml` muss ein externes Netz `web`
+   existieren. In Portainer unter *Networks* anlegen, falls es fehlt. Bei der
+   Standalone-Variante ist nichts zu tun.
+6. **Starten.** *Deploy the stack*. Portainer zieht das Image und startet den
    Container. Der Health-Status wird als `healthy` angezeigt.
-6. **Aktualisieren.** Bei neuem Stand im Repository im Stack auf *Pull and
-   redeploy* klicken. Die Datenbank liegt im Volume `quiz-data` und bleibt
+7. **Aktualisieren.** Im Stack auf *Pull and redeploy* klicken. Alternativ
+   *Recreate*. Portainer zieht das neue Image. Das Volume `quiz-data` bleibt
    erhalten.
-7. **Sichern.** Volume `quiz-data` sichern; darin liegen Fragen und
+8. **Sichern.** Volume `quiz-data` sichern; darin liegen Fragen und
    Zertifikate.
+
+### 4.3 Feste Fassung statt latest
+
+Statt `latest` kann ein Commit-Tag verwendet werden, damit ein Update nur
+bewusst erfolgt:
+
+```yaml
+image: ghcr.io/dejowebdesign/34a-quiz-arena:sha-<commit>
+```
+
+Den passenden Tag zeigt die Paketseite auf GitHub.
 
 ## 5. HTTPS mit Reverse Proxy und DuckDNS
 
@@ -185,10 +292,53 @@ Aufruf unter `http://localhost:5173`.
 ## 7. Tests und Builds
 
 ```bash
-npm test           # 99 Tests fuer Spielregeln, Geheimhaltung, Auth, Realtime
+npm test           # 100 Tests fuer Spielregeln, Geheimhaltung, Auth, Realtime
 npm run typecheck  # TypeScript-Pruefung aller Workspaces
 npm run build      # shared, Server und Client bauen
 ```
+
+## 7a. Image-Veroeffentlichung (GHCR)
+
+Der Workflow `.github/workflows/docker.yml` steuert Pruefung und
+Veroeffentlichung.
+
+| Ausloeser | Ablauf |
+| --- | --- |
+| Pull Request nach `main` | `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, danach Image-Bau ohne Veroeffentlichung |
+| Push auf `main` | Derselbe Ablauf. Nur bei Erfolg wird das Image nach GHCR veroeffentlicht |
+| Manuell | *Actions* → *Docker* → *Run workflow* |
+
+Die Veroeffentlichung nutzt `GITHUB_TOKEN` mit den Rechten `contents: read` und
+`packages: write`. Es sind keine eigenen Geheimnisse noetig.
+
+Vergebene Tags:
+
+| Tag | Herkunft |
+| --- | --- |
+| `latest` | Nur auf dem Standardbranch `main` |
+| `sha-<kurz>` | Kurzer Commit-Hash |
+| `sha-<lang>` | Vollstaendiger Commit-Hash |
+
+Ein neues Image ziehen und den Container neu bereitstellen:
+
+```bash
+# Mit Compose
+docker compose pull && docker compose up -d
+
+# Standalone
+docker compose -f docker-compose.standalone.yml pull
+docker compose -f docker-compose.standalone.yml up -d
+
+# In Portainer
+# Stack oeffnen -> Pull and redeploy
+```
+
+Das Volume `quiz-data` bleibt dabei unveraendert.
+
+Fehlt das Paket unter *Packages* oder schlaegt der Pull mit
+`denied`/`unauthorized` fehl, ist es noch privat. Dann entweder oeffentlich
+stellen (Abschnitt 4.1) oder in Portainer einen Registry-Eintrag mit
+`read:packages` hinterlegen.
 
 ## 8. Fragenverwaltung
 
@@ -222,8 +372,13 @@ gestoppt ist.
 
 | Symptom | Ursache | Loesung |
 | --- | --- | --- |
+| `pull access denied` beim Image | GHCR-Paket noch privat | Paket oeffentlich stellen oder Registry-Zugang in Portainer hinterlegen, Abschnitt 4.1 |
+| `manifest unknown` beim Pull | Tag existiert nicht | Auf der Paketseite verfuegbare Tags pruefen; `latest` entsteht erst nach einem Push auf `main` |
+| Container startet mit altem Stand | `pull` vergessen | `docker compose pull && docker compose up -d` |
 | `/api/health` antwortet nicht | Container laeuft nicht | `docker compose logs quiz-arena` pruefen |
 | Anmeldung schlaegt fehl | `ADMIN_PASSWORD_HASH` passt nicht | Hash neu erzeugen und Stack neu starten |
+| Anmeldung schlaegt fehl trotz richtigem Passwort | In `.env` wurde der Hash mit einfachen `$` geschrieben, Compose hat ihn abgeschnitten | In `.env` jedes `$` verdoppeln, siehe Abschnitt 2; mit `${#ADMIN_PASSWORD_HASH}` die Laenge pruefen |
+| Hash-Laenge im Container zu kurz | `$` in `.env` nicht verdoppelt | siehe Abschnitt 2, Wert auf `scrypt$$16384$$8$$1$$...` aendern |
 | Verbindung bricht ab | Proxy reicht WebSocket nicht durch | Upgrade-Kopfzeilen und Pfad `/socket.io/` pruefen |
 | Tickets nach Neustart ungueltig | `SESSION_SECRET` wechselt | festen Wert in `.env` setzen |
 | Kandidat kann nicht beitreten | Selbstbeitritt gesperrt | in der Moderation freigeben |

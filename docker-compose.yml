@@ -1,32 +1,61 @@
 # ---------------------------------------------------------------------------
-# 34A Quiz Arena - Bereitstellung mit Docker Compose
+# 34A Quiz Arena - Bereitstellung mit fertigem Image und externem Proxy-Netz
+#
+# Das Image kommt aus GitHub Container Registry. Es wird nichts lokal gebaut.
+# Geeignet, wenn der Reverse Proxy (Zoraxy, Traefik) im Docker-Netz "web"
+# laeuft.
 #
 # Schnellstart:
 #   1. cp .env.example .env
-#   2. In .env SESSION_SECRET und ADMIN_PASSWORD setzen
-#   3. docker compose up -d --build
-#   4. Aufruf: http://<server>:3000
+#   2. In .env SESSION_SECRET und ADMIN_PASSWORD_HASH setzen
+#   3. docker network create web        (einmalig, falls noch nicht vorhanden)
+#   4. docker compose pull
+#   5. docker compose up -d
 #
-# Hinter Zoraxy/Traefik: Netzwerk "web" nutzen und dort den Proxy anschliessen.
+# Aktualisieren:
+#   docker compose pull && docker compose up -d
+#
+# Fuer den Betrieb ohne externes Netz stattdessen docker-compose.standalone.yml
+# verwenden.
+#
+# Wichtig zu .env: Compose liest Dollarzeichen als Variablenverweis. Ein
+# scrypt-Hash muss deshalb mit doppelten Dollarzeichen geschrieben werden,
+# sonst wird er abgeschnitten und die Anmeldung schlaegt fehl:
+#   ADMIN_PASSWORD_HASH=scrypt$$16384$$8$$1$$<salt-hex>$$<hash-hex>
+# Im Portainer-Formular dagegen die einfachen Dollarzeichen eintragen.
 # ---------------------------------------------------------------------------
 services:
   quiz-arena:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: quiz-arena-34a:1.0.0
+    # Fertiges Image aus GHCR. Kein build-Abschnitt, damit Portainer nur
+    # herunterlaedt und startet.
+    image: ghcr.io/dejowebdesign/34a-quiz-arena:latest
+    # Bei jedem Start die aktuelle Fassung des Tags holen. Ein reiner Neustart
+    # des Containers durch die restart-Regel loest kein erneutes Laden aus.
+    pull_policy: always
     container_name: quiz-arena
     restart: unless-stopped
-    env_file:
-      - .env
+    # Kein env_file: die Werte kommen aus der .env des Projekts oder aus den
+    # Variablen des Portainer-Stacks. Fehlt beides, gelten die Vorgaben unten.
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: "3000"
       DB_PATH: /app/data/quiz-arena.db
       # Hinter einem HTTPS-Reverse-Proxy aktiv lassen.
       TRUST_PROXY: "true"
+      # ${VAR:-} uebernimmt den gesetzten Wert, sonst bleibt der Eintrag leer.
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_USER: ${ADMIN_USER:-moderator}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      MODERATOR_TTL_MS: ${MODERATOR_TTL_MS:-43200000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
     volumes:
-      # Persistente SQLite-Datenbank und Zertifikate.
+      # Persistente SQLite-Datenbank und Zertifikate. Dieses Volume bleibt bei
+      # Updates erhalten.
       - quiz-data:/app/data
     ports:
       # Nur noetig, wenn der Reverse Proxy nicht im selben Docker-Netz laeuft.
@@ -38,6 +67,8 @@ services:
       - no-new-privileges:true
 
 volumes:
+  # Name bleibt gegenueber frueheren Fassungen unveraendert, damit vorhandene
+  # Datenbanken bei einem Update nicht verloren gehen.
   quiz-data:
     driver: local
 
@@ -45,4 +76,5 @@ networks:
   web:
     # Externes Netz des Reverse Proxys. Vorher anlegen:
     #   docker network create web
+    # Heisst das Netz des Proxys anders, hier dessen Namen eintragen.
     external: true
