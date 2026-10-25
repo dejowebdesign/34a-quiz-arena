@@ -1,22 +1,26 @@
 # ---------------------------------------------------------------------------
-# 34A Quiz Arena - Bereitstellung mit fertigem Image und externem Proxy-Netz
+# 34A Quiz Arena - Standardbereitstellung
 #
 # Das Image kommt aus GitHub Container Registry. Es wird nichts lokal gebaut.
-# Geeignet, wenn der Reverse Proxy (Zoraxy, Traefik) im Docker-Netz "web"
-# laeuft.
+# Diese Datei ist der Standard und funktioniert ohne externes Docker-Netz.
+# Sie ist die Datei, die ein Portainer-Git-Stack verwendet.
 #
-# Schnellstart:
-#   1. cp .env.example .env
-#   2. In .env SESSION_SECRET und ADMIN_PASSWORD_HASH setzen
-#   3. docker network create web        (einmalig, falls noch nicht vorhanden)
-#   4. docker compose pull
-#   5. docker compose up -d
+# Schnellstart auf dem Zielserver:
+#   1. Stack in Portainer anlegen, Compose-Pfad: docker-compose.yml
+#   2. Umgebungsvariablen im Stack setzen (siehe unten)
+#   3. Deploy the stack
+#   4. Aufruf: http://<SERVER-IP>:3002
 #
 # Aktualisieren:
-#   docker compose pull && docker compose up -d
+#   Portainer: Stack oeffnen -> Pull and redeploy
 #
-# Fuer den Betrieb ohne externes Netz stattdessen docker-compose.standalone.yml
-# verwenden.
+# Fuer den Betrieb mit dem externen Proxy-Netz "web" (Zoraxy als Container)
+# zusaetzlich die Override-Datei verwenden:
+#   docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
+#
+# Ports: Der Host-Port ist ueber QUIZ_PORT konfigurierbar (Standard 3002), der
+# Container-Port bleibt 3000. Auf dem Umbrel-Host sind 3000 und 3001 bereits
+# belegt; 3002 ist die freie Wahl.
 #
 # Wichtig zu .env: Compose liest Dollarzeichen als Variablenverweis. Ein
 # scrypt-Hash muss deshalb mit doppelten Dollarzeichen geschrieben werden,
@@ -34,10 +38,12 @@ services:
     pull_policy: always
     container_name: quiz-arena
     restart: unless-stopped
-    # Kein env_file: die Werte kommen aus der .env des Projekts oder aus den
-    # Variablen des Portainer-Stacks. Fehlt beides, gelten die Vorgaben unten.
+    # Kein env_file: die Werte kommen aus den Variablen des Portainer-Stacks
+    # oder aus einer .env neben dieser Datei. Fehlt beides, gelten die
+    # Vorgaben unten.
     environment:
       NODE_ENV: production
+      # Container-Port. Nicht aendern; der Host-Port steht unter ports.
       PORT: "3000"
       DB_PATH: /app/data/quiz-arena.db
       # Hinter einem HTTPS-Reverse-Proxy aktiv lassen.
@@ -58,11 +64,10 @@ services:
       # Updates erhalten.
       - quiz-data:/app/data
     ports:
-      # Nur noetig, wenn der Reverse Proxy nicht im selben Docker-Netz laeuft.
-      # Ohne Proxy besser auf 127.0.0.1 binden: "127.0.0.1:3000:3000"
-      - "3000:3000"
-    networks:
-      - web
+      # Host-Port 3002 (konfigurierbar ueber QUIZ_PORT) auf Container-Port 3000.
+      # Auf dem Umbrel-Host sind 3000 und 3001 belegt.
+      # Nur lokal erreichbar machen: "127.0.0.1:${QUIZ_PORT:-3002}:3000"
+      - "${QUIZ_PORT:-3002}:3000"
     security_opt:
       - no-new-privileges:true
 
@@ -71,10 +76,3 @@ volumes:
   # Datenbanken bei einem Update nicht verloren gehen.
   quiz-data:
     driver: local
-
-networks:
-  web:
-    # Externes Netz des Reverse Proxys. Vorher anlegen:
-    #   docker network create web
-    # Heisst das Netz des Proxys anders, hier dessen Namen eintragen.
-    external: true

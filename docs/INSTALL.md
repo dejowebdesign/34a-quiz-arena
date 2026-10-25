@@ -27,6 +27,13 @@ node server/scripts/hash-password.mjs "DeinSicheresPasswort"
 # Ergebnis in ADMIN_PASSWORD_HASH eintragen und ADMIN_PASSWORD entfernen
 ```
 
+Optional den Host-Port aendern. Standard ist `3002`, weil auf dem Zielserver
+`3000` und `3001` belegt sind:
+
+```bash
+QUIZ_PORT=3002
+```
+
 `SESSION_SECRET` signiert Sitzungs- und Join-Tickets. Ohne festen Wert werden
 Verbindungen bei jedem Neustart ungueltig. `ADMIN_PASSWORD_HASH` ist der
 empfohlene Weg; `ADMIN_PASSWORD` bleibt als einfacher Einstieg erhalten.
@@ -54,7 +61,7 @@ node server/scripts/hash-password.mjs "DeinSicheresPasswort"
 Schnellpruefung, dass der Wert vollstaendig ankommt:
 
 ```bash
-docker compose -f docker-compose.standalone.yml exec quiz-arena \
+docker compose exec quiz-arena \
   sh -c 'echo ${#ADMIN_PASSWORD_HASH}'
 # Muss die volle Laenge des Hashes ausgeben, typisch 178.
 ```
@@ -65,46 +72,55 @@ unveraendert an.
 
 ## 3. Betrieb mit Docker Compose
 
-Das Image wird nicht mehr lokal gebaut. Beide Compose-Dateien laden
+Das Image wird nicht mehr lokal gebaut. Alle Compose-Dateien laden
 `ghcr.io/dejowebdesign/34a-quiz-arena:latest` aus GitHub Container Registry.
 
 ### Wann welche Datei
 
 | Datei | Verwenden wenn |
 | --- | --- |
-| `docker-compose.yml` | Ein Reverse Proxy im externen Docker-Netz `web` laeuft. Der Proxy erreicht den Container ueber `quiz-arena:3000`. Das ist der uebliche Dauerbetrieb. |
-| `docker-compose.standalone.yml` | Kein Netz `web` vorhanden ist. Typisch auf Umbrel und bei Portainer, wenn kein Proxy im selben Docker-Netz laeuft, sowie beim ersten Test. |
+| `docker-compose.yml` | Immer. Das ist der Standard und funktioniert ohne externes Docker-Netz. Diese Datei verwendet ein Portainer-Git-Stack. |
+| `docker-compose.zoraxy.yml` | Zusaetzlich zur Basisdatei, wenn Zoraxy als Container den Quiz-Container ueber das gemeinsame Docker-Netz `web` erreichen soll. Optional. |
 
-Beide Dateien sind ansonsten gleich: gleiche Umgebungsvariablen, gleicher
-Healthcheck aus dem Image, gleiche Sicherheitsoption `no-new-privileges` und
-dasselbe Datenvolume `quiz-data`.
+### Ports
 
-### Variante A: mit externem Proxy-Netz
+Der Host-Port ist ueber `QUIZ_PORT` konfigurierbar, Standard `3002`. Der
+Container-Port bleibt immer `3000`. Auf dem Zielserver (Umbrel) sind `3000`
+durch `dejo-kitchen-designer-backend-1` und `3001` durch FreeLLMAPI belegt.
+
+| Umgebung | Wert |
+| --- | --- |
+| Container-Port (`PORT`) | `3000` (nicht aendern) |
+| Host-Port (`QUIZ_PORT`) | `3002` (Standard) |
+
+### Standardbetrieb ohne externes Netz
 
 ```bash
-docker network create web     # einmalig, falls noch nicht vorhanden
 docker compose pull
 docker compose up -d
 ```
 
-Ist der Proxy im selben Netz, kann der veroeffentlichte Port `3000` aus der
-Datei entfernt werden.
+Aufruf unter `http://<server-ip>:3002`.
 
-### Variante B: ohne externes Netz
+### Optional: mit externem Proxy-Netz
+
+Nur noetig, wenn Zoraxy als Container im Netz `web` laeuft.
 
 ```bash
-docker compose -f docker-compose.standalone.yml pull
-docker compose -f docker-compose.standalone.yml up -d
+docker network create web     # einmalig, falls noch nicht vorhanden
+docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
 ```
 
-Aufruf unter `http://<server-ip>:3000`.
+Ist der Proxy im selben Netz, erreicht er den Container unter
+`quiz-arena:3000`. Der veroeffentlichte Host-Port `3002` kann dann entfallen,
+muss aber nicht.
 
 ### Pruefen
 
 ```bash
 docker compose ps
 docker compose logs -f quiz-arena
-curl http://127.0.0.1:3000/api/health
+curl http://127.0.0.1:3002/api/health
 ```
 
 Die Antwort `{"status":"ok",...}` zeigt, dass der Dienst bereit ist.
@@ -122,7 +138,8 @@ bleiben erhalten. Vor groesseren Updates trotzdem sichern, siehe Abschnitt 10.
 ## 4. Betrieb mit Portainer
 
 Portainer soll das Image nur herunterladen und starten, nicht selbst bauen.
-Dafuer ist in beiden Compose-Dateien kein `build`-Abschnitt mehr enthalten.
+Dafuer ist in allen Compose-Dateien kein `build`-Abschnitt enthalten. Der
+Standard `docker-compose.yml` braucht kein externes Netzwerk.
 
 ### 4.1 Paket oeffentlich stellen
 
@@ -151,18 +168,23 @@ fuer `ghcr.io` anlegen:
 
 Diesen Registry-Eintrag dann im Stack auswaehlen.
 
-### 4.2 Stack anlegen
+### 4.2 Bestehenden Git-Stack aktualisieren
 
-1. In Portainer auf *Stacks* → *Add stack*.
-2. Unter *Build method* die Option **Web editor** waehlen, damit Portainer
-   nichts klont und nichts baut.
-3. Den Inhalt der passenden Datei einfuegen: `docker-compose.yml` fuer den
-   Betrieb mit Netz `web`, sonst `docker-compose.standalone.yml`.
-   Die Standalone-Variante ist auf Umbrel der einfachere Weg.
-4. **Umgebungsvariablen setzen.** Im Abschnitt *Environment variables* die
-   Werte eintragen. Die Compose-Dateien lesen diese Variablen ueber
-   `${VAR:-...}`, deshalb genuegt es, sie in der Oberflaeche zu setzen; es wird
-   keine `.env`-Datei benoetigt.
+So wird der bereits vorhandene Stack `34a-quiz-arena` auf die korrigierte
+Konfiguration gebracht. Der Stack verwaltet sich ueber ein Git-Repository, es
+wird also nichts manuell kopiert.
+
+1. In Portainer auf *Stacks* den Stack `34a-quiz-arena` oeffnen.
+2. Die Repository-Einstellungen pruefen. Sie muessen so bleiben:
+
+   | Feld | Wert |
+   | --- | --- |
+   | Repository URL | `https://github.com/dejowebdesign/34a-quiz-arena` |
+   | Repository reference | `refs/heads/main` |
+   | Compose path | `docker-compose.yml` |
+
+3. Unter *Environment variables* die Werte eintragen oder pruefen. Die Datei
+   liest sie ueber `${VAR:-...}`, es wird keine `.env` benoetigt:
 
    | Variable | Wert |
    | --- | --- |
@@ -170,25 +192,45 @@ Diesen Registry-Eintrag dann im Stack auswaehlen.
    | `ADMIN_PASSWORD_HASH` | Ergebnis von `hash-password.mjs`, hier mit **einfachen** `$` |
    | `ADMIN_USER` | z. B. `moderator` |
    | `NODE_ENV` | `production` |
+   | `QUIZ_PORT` | `3002` (oder frei lassen, dann gilt der Standard) |
+   | `COOKIE_SECURE` | `true`, sobald HTTPS aktiv ist; fuer den ersten Test ueber HTTP `false` |
    | `TRUST_PROXY` | `true` |
-   | `COOKIE_SECURE` | `true`, sobald HTTPS aktiv ist |
 
    Hinweis: Im Portainer-Formular die einfachen `$` des Hashes verwenden, zum
    Beispiel `scrypt$16384$8$1$...$...`. Nur in einer `.env`-Datei muessen die
    `$` verdoppelt werden, siehe Abschnitt 2.
 
-5. **Netzwerk.** Bei `docker-compose.yml` muss ein externes Netz `web`
-   existieren. In Portainer unter *Networks* anlegen, falls es fehlt. Bei der
-   Standalone-Variante ist nichts zu tun.
-6. **Starten.** *Deploy the stack*. Portainer zieht das Image und startet den
-   Container. Der Health-Status wird als `healthy` angezeigt.
-7. **Aktualisieren.** Im Stack auf *Pull and redeploy* klicken. Alternativ
+4. **Deploy.** Auf *Update the stack* beziehungsweise *Pull and redeploy*
+   klicken. Portainer klont den neuen Stand von `main`, zieht das Image und
+   ersetzt den Container. Das Volume `quiz-data` bleibt erhalten.
+5. **Pruefen.** Unter *Containers* muss `quiz-arena` den Status `healthy`
+   zeigen. Danach im Browser `http://<UMBREL-IP>:3002` aufrufen.
+
+Achtung: Die Felder *Repository reference* und *Compose path* muessen auf
+`refs/heads/main` und `docker-compose.yml` zeigen. Nur diese Datei wird
+verwendet; eine Aenderung an einer anderen Datei wirkt sich nicht aus.
+
+### 4.3 Stack neu anlegen (Web editor)
+
+Wenn kein Git-Stack verwendet wird, laesst sich der Inhalt der Datei direkt
+einfuegen:
+
+1. In Portainer auf *Stacks* → *Add stack*.
+2. Unter *Build method* die Option **Web editor** waehlen, damit Portainer
+   nichts klont und nichts baut.
+3. Den Inhalt von `docker-compose.yml` einfuegen. Fuer den Betrieb mit dem
+   externen Netz `web` zusaetzlich die Zeilen aus
+   `docker-compose.zoraxy.yml` anhaengen und das Netz vorher anlegen.
+4. Die Umgebungsvariablen wie in Abschnitt 4.2 setzen.
+5. *Deploy the stack*. Portainer zieht das Image und startet den Container.
+   Der Health-Status wird als `healthy` angezeigt.
+6. **Aktualisieren.** Im Stack auf *Pull and redeploy* klicken. Alternativ
    *Recreate*. Portainer zieht das neue Image. Das Volume `quiz-data` bleibt
    erhalten.
-8. **Sichern.** Volume `quiz-data` sichern; darin liegen Fragen und
+7. **Sichern.** Volume `quiz-data` sichern; darin liegen Fragen und
    Zertifikate.
 
-### 4.3 Feste Fassung statt latest
+### 4.4 Feste Fassung statt latest
 
 Statt `latest` kann ein Commit-Tag verwendet werden, damit ein Update nur
 bewusst erfolgt:
@@ -201,6 +243,10 @@ Den passenden Tag zeigt die Paketseite auf GitHub.
 
 ## 5. HTTPS mit Reverse Proxy und DuckDNS
 
+Diese Schritte sind optional. Sie sind erst noetig, wenn die Show ueber eine
+oeffentliche Domain mit HTTPS erreichbar sein soll. Bis dahin laeuft die App
+unter `http://<UMBREL-IP>:3002`.
+
 ### 5.1 DuckDNS einrichten
 
 1. Auf duckdns.org anmelden und eine Subdomain anlegen, zum Beispiel
@@ -211,12 +257,26 @@ Den passenden Tag zeigt die Paketseite auf GitHub.
 
 ### 5.2 Ports freigeben
 
-Im Router nur 80 und 443 auf den Proxy weiterleiten. Port 3000 bleibt
-geschlossen; der Proxy erreicht den Container ueber das Docker-Netz.
+Im Router nur 80 und 443 auf den Proxy weiterleiten. Port 3002 bleibt
+geschlossen. Der Proxy erreicht den Container entweder ueber das Docker-Netz
+oder ueber die Host-Adresse und Port 3002.
 
-### 5.3 Zoraxy konfigurieren
+### 5.3 Variante A: Zoraxy als Container (Netz `web`)
 
-1. In Zoraxy einen *HTTP Proxy* anlegen.
+Laeuft Zoraxy selbst als Container, den Quiz-Container mit der Override-Datei
+ins gemeinsame Netz bringen:
+
+```bash
+docker network create web     # einmalig, falls noch nicht vorhanden
+docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
+```
+
+In Portainer: siehe Abschnitt 4.3, die Zeilen aus `docker-compose.zoraxy.yml`
+ergaenzen.
+
+Danach in Zoraxy:
+
+1. Einen *HTTP Proxy* anlegen.
 2. Als Ziel den Containernamen und Port eintragen: `quiz-arena:3000`.
    Zoraxy loest den Namen im gemeinsamen Docker-Netz `web` auf.
 3. Als Hostname `quiz-arena.duckdns.org` eintragen.
@@ -228,7 +288,14 @@ geschlossen; der Proxy erreicht den Container ueber das Docker-Netz.
    Pruefen, dass die Kopfzeilen `Upgrade` und `Connection` unveraendert
    durchgereicht werden.
 
-### 5.4 Nginx als Alternative
+### 5.4 Variante B: Proxy ausserhalb von Docker
+
+Laeuft der Proxy nicht als Container (oder soll den Host-Port nutzen), als
+Ziel die Host-Adresse mit Port `3002` verwenden, zum Beispiel
+`http://192.168.1.50:3002`. Dann ist kein gemeinsames Docker-Netz noetig, und
+`docker-compose.yml` allein genuegt.
+
+### 5.5 Nginx als Alternative
 
 ```nginx
 server {
@@ -245,6 +312,8 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/quiz-arena.duckdns.org/privkey.pem;
 
     location / {
+        # Im gemeinsamen Docker-Netz: quiz-arena:3000.
+        # Ausserhalb von Docker: die Host-Adresse mit Port 3002.
         proxy_pass http://quiz-arena:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -261,7 +330,7 @@ server {
 Der lange `proxy_read_timeout` verhindert, dass WebSocket-Verbindungen
 waehrend einer laufenden Show abgebaut werden.
 
-### 5.5 Nach dem Umstieg auf HTTPS
+### 5.6 Nach dem Umstieg auf HTTPS
 
 In `.env` beziehungsweise den Portainer-Variablen setzen:
 
@@ -325,9 +394,9 @@ Ein neues Image ziehen und den Container neu bereitstellen:
 # Mit Compose
 docker compose pull && docker compose up -d
 
-# Standalone
-docker compose -f docker-compose.standalone.yml pull
-docker compose -f docker-compose.standalone.yml up -d
+# Mit Zoraxy-Override
+docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml pull
+docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
 
 # In Portainer
 # Stack oeffnen -> Pull and redeploy
@@ -372,6 +441,9 @@ gestoppt ist.
 
 | Symptom | Ursache | Loesung |
 | --- | --- | --- |
+| `network web declared as external, but could not be found` | Externes Netz fehlt | `docker-compose.yml` allein verwenden, oder `docker network create web` und die Override-Datei `docker-compose.zoraxy.yml` ergaenzen, Abschnitt 5.3 |
+| `Bind for 0.0.0.0:3002 failed: port is already allocated` | Host-Port 3002 belegt | Anderen freien Port setzen: `QUIZ_PORT` in Portainer oder `.env` aendern |
+| `Bind for 0.0.0.0:3000 failed: port is already allocated` | Alter Stand mit festem Port 3000 | Compose-Datei auf den neuen Stand bringen (Host-Port 3002 ueber `QUIZ_PORT`), Abschnitt 3 |
 | `pull access denied` beim Image | GHCR-Paket noch privat | Paket oeffentlich stellen oder Registry-Zugang in Portainer hinterlegen, Abschnitt 4.1 |
 | `manifest unknown` beim Pull | Tag existiert nicht | Auf der Paketseite verfuegbare Tags pruefen; `latest` entsteht erst nach einem Push auf `main` |
 | Container startet mit altem Stand | `pull` vergessen | `docker compose pull && docker compose up -d` |

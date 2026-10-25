@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------
+# 34A Quiz Arena - optionale Ergaenzung fuer den Reverse Proxy Zoraxy
+#
+# Nur noetig, wenn Zoraxy als Docker-Container laeuft und den Quiz-Container
+# ueber das gemeinsame Docker-Netz "web" erreichen soll. Der Standardbetrieb
+# (siehe docker-compose.yml) braucht diese Datei nicht.
+#
+# Verwendung, immer zusammen mit der Basisdatei:
+#   docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
+#
+# Voraussetzung: das externe Netz existiert bereits.
+#   docker network create web
+#
+# In Portainer: bei einem Stack mehrere Compose-Dateien ueber das Feld
+# "Compose path" beziehungsweise einen zusaetzlichen Eintrag ergaenzen, oder
+# den Inhalt beider Dateien zusammenfuehren. Siehe docs/INSTALL.md, Abschnitt 5.
+#
+# Hinweis: Sobald der Container im Netz "web" liegt, erreicht Zoraxy ihn unter
+# dem Namen quiz-arena auf Port 3000. Der veroeffentlichte Host-Port (3002) kann
+# dann entfallen, muss aber nicht.
+# ---------------------------------------------------------------------------
+services:
+  quiz-arena:
+    networks:
+      - default
+      - web
+
+networks:
+  web:
+    # Externes Netz des Reverse Proxys. Vorher anlegen:
+    #   docker network create web
+    # Heisst das Netz des Proxys anders, hier dessen Namen eintragen.
+    external: true
