@@ -72,15 +72,16 @@ unveraendert an.
 
 ## 3. Betrieb mit Docker Compose
 
-Das Image wird nicht mehr lokal gebaut. Alle Compose-Dateien laden
+Das Image wird nicht mehr lokal gebaut. `docker-compose.yml` laedt
 `ghcr.io/dejowebdesign/34a-quiz-arena:latest` aus GitHub Container Registry.
 
-### Wann welche Datei
-
-| Datei | Verwenden wenn |
-| --- | --- |
-| `docker-compose.yml` | Immer. Das ist der Standard und funktioniert ohne externes Docker-Netz. Diese Datei verwendet ein Portainer-Git-Stack. |
-| `docker-compose.zoraxy.yml` | Zusaetzlich zur Basisdatei, wenn Zoraxy als Container den Quiz-Container ueber das gemeinsame Docker-Netz `web` erreichen soll. Optional. |
+`docker-compose.yml` ist die **einzige** Compose-Datei des Projekts. Sie ist in
+sich vollstaendig und gueltig. Es gibt bewusst keine zweite Compose-Datei, die
+nur als Ergaenzung dient. Eine solche Datei ohne eigenen `image`-Eintrag wurde
+in Portainer versehentlich als Hauptdatei geladen und mit
+`service "quiz-arena" has neither an image nor a build context specified`
+abgelehnt. Der Portainer-Stack muss deshalb als *Compose path* genau
+`docker-compose.yml` verwenden.
 
 ### Ports
 
@@ -102,22 +103,40 @@ docker compose up -d
 
 Aufruf unter `http://<server-ip>:3002`.
 
-### Optional: mit externem Proxy-Netz
+### Optional: Zugriff fuer Zoraxy
 
-Nur noetig, wenn Zoraxy als Container im Netz `web` laeuft.
+Laeuft Zoraxy als Container und soll den Quiz-Container ueber das gemeinsame
+Docker-Netz `web` erreichen, den Dienst zusaetzlich in dieses Netz haengen. Die
+Aenderung erfolgt in `docker-compose.yml` selbst, damit die Datei in sich
+gueltig bleibt. Beim Service `quiz-arena` die Netzwerkzeilen ergaenzen und
+unten den Netzwerkabschnitt anfuegen:
 
-```bash
-docker network create web     # einmalig, falls noch nicht vorhanden
-docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
+```yaml
+services:
+  quiz-arena:
+    # ... vorhandene Eintraege bleiben ...
+    networks:
+      - default
+      - web
+
+networks:
+  web:
+    external: true
 ```
 
-Ist der Proxy im selben Netz, erreicht er den Container unter
-`quiz-arena:3000`. Der veroeffentlichte Host-Port `3002` kann dann entfallen,
-muss aber nicht.
+Vorher das Netz einmalig anlegen:
+
+```bash
+docker network create web
+```
+
+Danach erreicht Zoraxy den Container unter `quiz-arena:3000`. Der
+veroeffentlichte Host-Port `3002` kann dann entfallen, muss aber nicht.
 
 ### Pruefen
 
 ```bash
+docker compose config --quiet    # Syntaxpruefung, keine Ausgabe bei Erfolg
 docker compose ps
 docker compose logs -f quiz-arena
 curl http://127.0.0.1:3002/api/health
@@ -138,8 +157,8 @@ bleiben erhalten. Vor groesseren Updates trotzdem sichern, siehe Abschnitt 10.
 ## 4. Betrieb mit Portainer
 
 Portainer soll das Image nur herunterladen und starten, nicht selbst bauen.
-Dafuer ist in allen Compose-Dateien kein `build`-Abschnitt enthalten. Der
-Standard `docker-compose.yml` braucht kein externes Netzwerk.
+Dafuer ist in der Compose-Datei kein `build`-Abschnitt enthalten. Der Standard
+`docker-compose.yml` braucht kein externes Netzwerk.
 
 ### 4.1 Paket oeffentlich stellen
 
@@ -219,8 +238,12 @@ einfuegen:
 2. Unter *Build method* die Option **Web editor** waehlen, damit Portainer
    nichts klont und nichts baut.
 3. Den Inhalt von `docker-compose.yml` einfuegen. Fuer den Betrieb mit dem
-   externen Netz `web` zusaetzlich die Zeilen aus
-   `docker-compose.zoraxy.yml` anhaengen und das Netz vorher anlegen.
+   externen Netz `web` die Netzwerkzeilen wie in Abschnitt 3 ergaenzen und das
+   Netz vorher anlegen. Wichtig: Als *Compose path* beziehungsweise im Editor
+   die **vollstaendige** Datei verwenden. Eine Datei ohne eigenen
+   `image`-Eintrag wird mit
+   `service "quiz-arena" has neither an image nor a build context specified`
+   abgelehnt.
 4. Die Umgebungsvariablen wie in Abschnitt 4.2 setzen.
 5. *Deploy the stack*. Portainer zieht das Image und startet den Container.
    Der Health-Status wird als `healthy` angezeigt.
@@ -263,16 +286,31 @@ oder ueber die Host-Adresse und Port 3002.
 
 ### 5.3 Variante A: Zoraxy als Container (Netz `web`)
 
-Laeuft Zoraxy selbst als Container, den Quiz-Container mit der Override-Datei
-ins gemeinsame Netz bringen:
+Laeuft Zoraxy selbst als Container, den Quiz-Container ins gemeinsame Netz
+bringen. Die Netzwerkzeilen werden in `docker-compose.yml` ergaenzt, damit die
+Datei in sich gueltig bleibt:
+
+```yaml
+services:
+  quiz-arena:
+    # ... vorhandene Eintraege bleiben ...
+    networks:
+      - default
+      - web
+
+networks:
+  web:
+    external: true
+```
+
+Netz einmalig anlegen und Stack neu bereitstellen:
 
 ```bash
 docker network create web     # einmalig, falls noch nicht vorhanden
-docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
+docker compose up -d
 ```
 
-In Portainer: siehe Abschnitt 4.3, die Zeilen aus `docker-compose.zoraxy.yml`
-ergaenzen.
+In Portainer: siehe Abschnitt 4.3, die Netzwerkzeilen im Editor ergaenzen.
 
 Danach in Zoraxy:
 
@@ -394,10 +432,6 @@ Ein neues Image ziehen und den Container neu bereitstellen:
 # Mit Compose
 docker compose pull && docker compose up -d
 
-# Mit Zoraxy-Override
-docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml pull
-docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
-
 # In Portainer
 # Stack oeffnen -> Pull and redeploy
 ```
@@ -441,7 +475,8 @@ gestoppt ist.
 
 | Symptom | Ursache | Loesung |
 | --- | --- | --- |
-| `network web declared as external, but could not be found` | Externes Netz fehlt | `docker-compose.yml` allein verwenden, oder `docker network create web` und die Override-Datei `docker-compose.zoraxy.yml` ergaenzen, Abschnitt 5.3 |
+| `service "quiz-arena" has neither an image nor a build context specified` | Der Stack zeigt auf eine Datei ohne `image`-Eintrag, etwa eine reine Ergaenzungsdatei | Als *Compose path* `docker-compose.yml` verwenden. Sie enthaelt `image`, Ports, Volume und Healthcheck und ist in sich gueltig |
+| `network web declared as external, but could not be found` | Externes Netz fehlt | Standardbetrieb ohne Netz verwenden, oder `docker network create web` und die Netzwerkzeilen in `docker-compose.yml` ergaenzen, Abschnitt 5.3 |
 | `Bind for 0.0.0.0:3002 failed: port is already allocated` | Host-Port 3002 belegt | Anderen freien Port setzen: `QUIZ_PORT` in Portainer oder `.env` aendern |
 | `Bind for 0.0.0.0:3000 failed: port is already allocated` | Alter Stand mit festem Port 3000 | Compose-Datei auf den neuen Stand bringen (Host-Port 3002 ueber `QUIZ_PORT`), Abschnitt 3 |
 | `pull access denied` beim Image | GHCR-Paket noch privat | Paket oeffentlich stellen oder Registry-Zugang in Portainer hinterlegen, Abschnitt 4.1 |

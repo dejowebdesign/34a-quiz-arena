@@ -78,10 +78,6 @@ node server/scripts/hash-password.mjs "DeinPasswort"  # in ADMIN_PASSWORD_HASH e
 # Standardbetrieb: ohne externes Docker-Netz
 docker compose pull
 docker compose up -d
-
-# Nur wenn Zoraxy als Container ueber das Netz "web" angebunden wird:
-docker network create web
-docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
 ```
 
 Hinweis zum Hash: In `.env` muss der scrypt-Hash mit doppelten Dollarzeichen
@@ -98,15 +94,14 @@ Im Portainer-Formular dagegen die einfachen Dollarzeichen verwenden. Details in
 Aufruf unter `http://<server>:3002`. Der Host-Port ist ueber `QUIZ_PORT`
 konfigurierbar (Standard 3002); der Container-Port bleibt 3000.
 
-Welche Datei gilt:
+`docker-compose.yml` ist die einzige Compose-Datei des Projekts. Sie ist
+vollstaendig und in sich gueltig, auch ohne weitere Datei. Der Portainer-Stack
+muss genau diese Datei verwenden (Compose path: `docker-compose.yml`). Ein
+anderer Pfad, etwa eine Datei ohne eigenen `image`-Eintrag, fuehrt zu
+`service "quiz-arena" has neither an image nor a build context specified`.
 
-| Datei | Verwenden wenn |
-| --- | --- |
-| `docker-compose.yml` | Immer. Standardbetrieb, ohne externes Netz. Das ist die Datei fuer einen Portainer-Git-Stack |
-| `docker-compose.zoraxy.yml` | Zusaetzlich, wenn Zoraxy als Container den Quiz-Container ueber das gemeinsame Netz `web` erreichen soll |
-
-Beide Dateien laden `ghcr.io/dejowebdesign/34a-quiz-arena:latest` und bauen
-nichts lokal. Einzelheiten in [`docs/INSTALL.md`](docs/INSTALL.md).
+Das Image `ghcr.io/dejowebdesign/34a-quiz-arena:latest` wird geladen, nichts
+wird lokal gebaut. Einzelheiten in [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ## Ansichten
 
