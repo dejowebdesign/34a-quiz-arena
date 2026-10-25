@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# 34A Quiz Arena - Bereitstellung mit Docker Compose
+#
+# Schnellstart:
+#   1. cp .env.example .env
+#   2. In .env SESSION_SECRET und ADMIN_PASSWORD setzen
+#   3. docker compose up -d --build
+#   4. Aufruf: http://<server>:3000
+#
+# Hinter Zoraxy/Traefik: Netzwerk "web" nutzen und dort den Proxy anschliessen.
+# ---------------------------------------------------------------------------
+services:
+  quiz-arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: quiz-arena-34a:1.0.0
+    container_name: quiz-arena
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_PATH: /app/data/quiz-arena.db
+      # Hinter einem HTTPS-Reverse-Proxy aktiv lassen.
+      TRUST_PROXY: "true"
+    volumes:
+      # Persistente SQLite-Datenbank und Zertifikate.
+      - quiz-data:/app/data
+    ports:
+      # Nur noetig, wenn der Reverse Proxy nicht im selben Docker-Netz laeuft.
+      # Ohne Proxy besser auf 127.0.0.1 binden: "127.0.0.1:3000:3000"
+      - "3000:3000"
+    networks:
+      - web
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  quiz-data:
+    driver: local
+
+networks:
+  web:
+    # Externes Netz des Reverse Proxys. Vorher anlegen:
+    #   docker network create web
+    external: true

@@ -1,0 +1,101 @@
+{
+  "questions": [
+    {
+      "topic": "oeffentliches_recht_gewerberecht",
+      "difficulty": "leicht",
+      "text": "Welche Stelle erteilt die Erlaubnis nach § 34a GewO?",
+      "options": [
+        "Die zustaendige oertliche Ordnungs- oder Gewerbebehoerde",
+        "Das Bundesamt fuer Gueterverkehr",
+        "Die Industrie- und Handelskammer",
+        "Das Bundesministerium des Innern"
+      ],
+      "correctIndex": 0,
+      "explanation": "Die Erlaubnis erteilt die nach Landesrecht zustaendige Behoerde. Die IHK fuehrt die Sachkundepruefung durch, erteilt die Erlaubnis aber nicht selbst.",
+      "legalBasis": "§ 34a Abs. 1 GewO",
+      "legalStatus": "unverified",
+      "sourceNote": "Gesetzestext GewO, Stand vor der Veroeffentlichung zu pruefen",
+      "status": "draft"
+    },
+    {
+      "topic": "straf_verfahrensrecht",
+      "difficulty": "mittel",
+      "text": "Was bedeutet der Grundsatz der Unschuldsvermutung?",
+      "options": [
+        "Jede Person gilt bis zum rechtskraeftigen Urteil als unschuldig",
+        "Beschuldigte muessen ihre Unschuld beweisen",
+        "Die Polizei darf jederzeit durchsuchen",
+        "Ein Gestandnis ist immer verwertbar"
+      ],
+      "correctIndex": 0,
+      "explanation": "Die Unschuldsvermutung ist ein Verfahrensgrundsatz. Sie belastet nicht den Beschuldigten mit der Beweislast.",
+      "legalBasis": "Art. 6 Abs. 2 EMRK, Art. 20 Abs. 3 GG",
+      "legalStatus": "unverified",
+      "sourceNote": "Gesetzestexte, Stand vor der Veroeffentlichung zu pruefen",
+      "status": "draft"
+    },
+    {
+      "topic": "bgb",
+      "difficulty": "leicht",
+      "text": "Wie lange betraegt die Regelverjaehrungsfrist fuer Anspruche nach § 195 BGB?",
+      "options": ["Drei Jahre", "Ein Jahr", "Fuenf Jahre", "Zehn Jahre"],
+      "correctIndex": 0,
+      "explanation": "Die Regelverjaehrungsfrist betraegt drei Jahre. Sie beginnt mit dem Schluss des Jahres, in dem der Anspruch entstanden ist.",
+      "legalBasis": "§ 195 BGB, § 199 BGB",
+      "legalStatus": "unverified",
+      "sourceNote": "Gesetzestext BGB, Stand vor der Veroeffentlichung zu pruefen",
+      "status": "draft"
+    },
+    {
+      "topic": "unfallverhuetung",
+      "difficulty": "mittel",
+      "text": "Welche Stelle erlaesst Unfallverhuetungsvorschriften fuer Unternehmen?",
+      "options": [
+        "Die zustaendige Berufsgenossenschaft oder Unfallkasse",
+        "Die Gemeinde",
+        "Das Finanzamt",
+        "Der Betriebsrat allein"
+      ],
+      "correctIndex": 0,
+      "explanation": "Unfallverhuetungsvorschriften werden von den Traegern der gesetzlichen Unfallversicherung erlassen und sind fuer die Mitgliedsbetriebe verbindlich.",
+      "legalBasis": "§ 15 SGB VII",
+      "legalStatus": "unverified",
+      "sourceNote": "Gesetzestext SGB VII, Stand vor der Veroeffentlichung zu pruefen",
+      "status": "draft"
+    },
+    {
+      "topic": "umgang_mit_menschen",
+      "difficulty": "leicht",
+      "text": "Was ist bei einer Deeskalation in einer Konfliktsituation vorrangig?",
+      "options": [
+        "Ruhige Ansprache und Wahrung der koerperlichen Distanz",
+        "Lautes Auftreten, um Staerke zu zeigen",
+        "Sofortiger koerperlicher Zwang",
+        "Ignorieren der Situation"
+      ],
+      "correctIndex": 0,
+      "explanation": "Deeskalation zielt auf Kommunikation und Distanz. Koerperlicher Zwang ist letztes Mittel und muss verhaeltnismaessig sein.",
+      "legalBasis": null,
+      "legalStatus": "unverified",
+      "sourceNote": null,
+      "status": "draft"
+    },
+    {
+      "topic": "sicherheitstechnik",
+      "difficulty": "schwer",
+      "text": "Wofuer steht die Abkuerzung VdS in der Sicherheitstechnik?",
+      "options": [
+        "Vertrauen durch Sicherheit - eine Institution der Sach- und Haftpflichtversicherer",
+        "Verband der Sicherheitsdienste",
+        "Verordnung der Sicherheitsbehoerden",
+        "Verein der Schluesseldienste"
+      ],
+      "correctIndex": 0,
+      "explanation": "VdS ist eine Institution der deutschen Sach- und Haftpflichtversicherer, die unter anderem Anerkennungen fuer Sicherheitstechnik vergibt.",
+      "legalBasis": null,
+      "legalStatus": "unverified",
+      "sourceNote": "Angabe nach allgemeinem Fachwissen, vor Verwendung zu pruefen",
+      "status": "draft"
+    }
+  ]
+}

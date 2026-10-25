@@ -1,0 +1,752 @@
+/* ---------------------------------------------------------------------------
+   34A Quiz Arena - Gestaltung angelehnt an klassische Quizshows:
+   dunkles Studio, goldene Akzente, hexagonale Antwortfelder, goldene Leiter.
+   Alle Klassennamen bleiben erhalten.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --bg-deep: #030617;
+  --bg: #060b26;
+  --panel: #101740;
+  --panel-2: #1a2360;
+  --line: #2b3676;
+  --gold: #f7c948;
+  --gold-bright: #ffe27a;
+  --gold-dim: #a97d14;
+  --text: #f2f4ff;
+  --muted: #9aa4d8;
+  --correct: #35d07f;
+  --wrong: #ef5350;
+  --info: #4aa3ff;
+  --radius: 16px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --display: 'Arial Narrow', 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+/* Studio-Hintergrund mit Lichtkegel hinter der Buehne. */
+body {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 0%, rgba(58, 82, 190, 0.5) 0%, rgba(10, 16, 56, 0) 62%),
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(20, 32, 96, 0.55) 0%, rgba(3, 6, 23, 0) 70%),
+    linear-gradient(180deg, #0a1140 0%, var(--bg) 42%, var(--bg-deep) 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--info);
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: linear-gradient(180deg, rgba(16, 23, 64, 0.96), rgba(6, 11, 38, 0.82));
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(247, 201, 72, 0.14) inset;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+}
+
+.brand span {
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(247, 201, 72, 0.45);
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav a {
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.84rem;
+  background: rgba(26, 35, 96, 0.55);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.nav a:hover {
+  border-color: var(--gold-dim);
+}
+
+.nav a.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(247, 201, 72, 0.1);
+}
+
+.content {
+  flex: 1;
+  padding: 18px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(23, 32, 84, 0.92), rgba(9, 14, 46, 0.86));
+  border: 1px solid var(--line);
+  border-top-color: rgba(247, 201, 72, 0.28);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+
+.card h1,
+.card h2,
+.card h3 {
+  margin-top: 0;
+  font-family: var(--display);
+  letter-spacing: 0.6px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-2), #131a4d);
+  color: var(--text);
+  padding: 9px 14px;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #28337d, #1a2360);
+  border-color: var(--gold-dim);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-dim));
+  color: #241a00;
+  font-weight: 800;
+  border-color: var(--gold);
+  box-shadow: 0 6px 20px rgba(247, 201, 72, 0.28);
+  letter-spacing: 0.3px;
+}
+
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fff0a8, var(--gold));
+  border-color: var(--gold-bright);
+}
+
+button.danger {
+  border-color: var(--wrong);
+  color: #ffd9d3;
+}
+
+button.ghost {
+  background: transparent;
+}
+
+button.small {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #080d2c;
+  color: var(--text);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.15);
+}
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.74rem;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.pill.gold {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.pill.ok {
+  border-color: var(--correct);
+  color: var(--correct);
+}
+
+.pill.warn {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.pill.bad {
+  border-color: var(--wrong);
+  color: #ff9d92;
+}
+
+.notice {
+  border-left: 4px solid var(--gold);
+  background: rgba(247, 201, 72, 0.09);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.notice.error {
+  border-color: var(--wrong);
+  background: rgba(239, 83, 80, 0.12);
+}
+
+/* --- Gewinnleiter ---------------------------------------------------------- */
+
+.ladder {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ladder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(43, 54, 118, 0.6);
+  background: linear-gradient(90deg, rgba(16, 23, 64, 0.9), rgba(10, 15, 48, 0.5));
+  font-size: 0.86rem;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.ladder-row .num {
+  width: 28px;
+  text-align: right;
+  color: var(--gold-dim);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.ladder-row.safety {
+  border-color: rgba(154, 164, 216, 0.75);
+  background: linear-gradient(90deg, rgba(38, 48, 108, 0.95), rgba(14, 20, 60, 0.6));
+}
+
+.ladder-row.safety .num {
+  color: var(--text);
+}
+
+.ladder-row.reached .num {
+  color: var(--gold);
+}
+
+.ladder-row.current {
+  background: linear-gradient(90deg, var(--gold-bright), rgba(247, 201, 72, 0.35));
+  border-color: var(--gold-bright);
+  color: #1d1500;
+  font-weight: 800;
+  box-shadow: 0 0 22px rgba(247, 201, 72, 0.35);
+}
+
+.ladder-row.current .num {
+  color: #1d1500;
+}
+
+.ladder-row.top .num {
+  color: var(--gold);
+}
+
+/* --- Frage und Antworten --------------------------------------------------- */
+
+.question-text {
+  font-family: var(--display);
+  font-size: clamp(1.1rem, 2.6vw, 1.65rem);
+  line-height: 1.35;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-align: center;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(26, 35, 96, 0.85), rgba(8, 13, 44, 0.9));
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.options {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* Hexagonale Antwortfelder wie im Original. Der Rand entsteht aus einem
+   aeusseren Farbverlauf und einer um 2px eingerueckten Innenflaeche. */
+.option {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  background: linear-gradient(180deg, #3b4ea8, #16205c);
+  clip-path: polygon(3% 0, 97% 0, 100% 50%, 97% 100%, 3% 100%, 0 50%);
+  transition: filter 0.15s ease, transform 0.08s ease;
+}
+
+.option::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  clip-path: polygon(3% 0, 97% 0, 100% 50%, 97% 100%, 3% 100%, 0 50%);
+  background: linear-gradient(180deg, #1c2a76, #0a1038);
+  z-index: 0;
+  transition: background 0.15s ease;
+}
+
+.option > * {
+  position: relative;
+  z-index: 1;
+}
+
+.option:hover:not(:disabled)::before {
+  background: linear-gradient(180deg, #2b3c96, #131c58);
+}
+
+.option:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.option .letter {
+  flex: 0 0 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* Verbindlich gewaehlt: goldener Balken, dunkle Schrift. */
+.option.selected {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-dim));
+}
+
+.option.selected::before {
+  background: linear-gradient(180deg, var(--gold-bright), #d9a521);
+}
+
+.option.selected,
+.option.selected .letter {
+  color: #1d1500;
+}
+
+.option.selected .letter {
+  border-color: #1d1500;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.option.correct {
+  background: linear-gradient(180deg, #5ef0a4, #16a35b);
+}
+
+.option.correct::before {
+  background: linear-gradient(180deg, #3ddc8b, #12904f);
+}
+
+.option.correct,
+.option.correct .letter {
+  color: #032012;
+}
+
+.option.wrong {
+  background: linear-gradient(180deg, #ff8a84, #c2352f);
+}
+
+.option.wrong::before {
+  background: linear-gradient(180deg, #f2635c, #a82b26);
+}
+
+.option.wrong,
+.option.wrong .letter {
+  color: #2a0503;
+}
+
+.option.hidden {
+  opacity: 0.3;
+  filter: grayscale(0.8);
+  text-decoration: line-through;
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+/* --- Countdown ------------------------------------------------------------- */
+
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--display);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 1.7rem;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(247, 201, 72, 0.4);
+}
+
+.countdown.urgent {
+  color: var(--wrong);
+  text-shadow: 0 0 22px rgba(239, 83, 80, 0.6);
+  animation: pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.countdown-track {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-top: 6px;
+  border: 1px solid rgba(43, 54, 118, 0.7);
+}
+
+.countdown-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-bright), var(--wrong));
+  transition: width 0.2s linear;
+}
+
+/* --- Gluecksrad ------------------------------------------------------------ */
+
+.wheel {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 7px solid var(--gold-dim);
+  background: conic-gradient(
+    from 0deg,
+    #1d2766 0 30deg,
+    #2b3785 30deg 60deg,
+    #1d2766 60deg 90deg,
+    #2b3785 90deg 120deg,
+    #1d2766 120deg 150deg,
+    #2b3785 150deg 180deg,
+    #1d2766 180deg 210deg,
+    #2b3785 210deg 240deg,
+    #1d2766 240deg 270deg,
+    #2b3785 270deg 300deg,
+    #1d2766 300deg 330deg,
+    #2b3785 330deg 360deg
+  );
+  display: grid;
+  place-items: center;
+  margin: 14px auto;
+  position: relative;
+  box-shadow: inset 0 0 46px rgba(0, 0, 0, 0.7), 0 0 34px rgba(247, 201, 72, 0.18);
+  transition: transform 1.6s cubic-bezier(0.2, 0.9, 0.15, 1);
+}
+
+.wheel::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-top: 18px solid var(--gold);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.wheel .hub {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #1b2465, var(--bg-deep));
+  border: 3px solid var(--gold);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 6px;
+  color: var(--gold-bright);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(26, 35, 96, 0.5);
+  border: 1px solid rgba(43, 54, 118, 0.5);
+  font-size: 0.88rem;
+}
+
+/* --- Publikumsjoker -------------------------------------------------------- */
+
+.poll-bar {
+  display: grid;
+  grid-template-columns: 28px 1fr 34px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.poll-track {
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(43, 54, 118, 0.6);
+}
+
+.poll-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--info), var(--gold));
+  transition: width 0.4s ease;
+}
+
+/* --- Tabellen und Zertifikat ---------------------------------------------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.74rem;
+}
+
+.certificate {
+  background: #fffdf5;
+  color: #1a1a1a;
+  border-radius: var(--radius);
+  padding: 34px;
+  border: 10px double #b98f1f;
+  max-width: 760px;
+  margin: 0 auto;
+  box-shadow: var(--shadow);
+}
+
+.certificate h1 {
+  margin: 0 0 4px;
+  font-size: 1.7rem;
+  color: #1a1a1a;
+  font-family: var(--display);
+  letter-spacing: 0.5px;
+}
+
+.certificate .meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.certificate .meta div {
+  border-top: 2px solid #b98f1f;
+  padding-top: 6px;
+  font-size: 0.95rem;
+}
+
+.certificate .disclaimer {
+  margin-top: 18px;
+  font-size: 0.82rem;
+  border: 1px solid #c9a227;
+  background: #fff6d8;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.qr {
+  display: block;
+  margin: 12px auto 0;
+  background: #fff;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.phase-badge {
+  font-family: var(--display);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  background: rgba(247, 201, 72, 0.08);
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 12px;
+  }
+  .option {
+    font-size: 0.94rem;
+    padding: 12px 18px;
+  }
+  .options {
+    grid-template-columns: 1fr;
+  }
+  .ladder {
+    max-height: 340px;
+  }
+  .wheel {
+    width: 168px;
+    height: 168px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel,
+  .countdown-fill,
+  .option {
+    transition: none;
+  }
+  .countdown.urgent {
+    animation: none;
+  }
+}
