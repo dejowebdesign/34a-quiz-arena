@@ -4,8 +4,9 @@ import { FakeClock, makeQuestion } from './helpers.js';
 
 function setup() {
   const clock = new FakeClock();
-  const engine = new GameEngine({ code: 'TIME01', name: 'Zeitshow', clock, hintProvider: async () => 'Hinweis' });
+  const engine = new GameEngine({ code: 'TIME01', name: 'Zeitshow', clock, hintProvider: async () => 'Hinweis' , approvedQuestionCount: () => 99 });
   const alice = engine.addPlayer('Alice', 'A');
+  engine.startGame();
   return { engine, clock, alice };
 }
 

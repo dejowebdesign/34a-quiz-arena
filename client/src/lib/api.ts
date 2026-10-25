@@ -91,6 +91,20 @@ export const api = {
 
   audienceToken: (code: string) => request<{ token: string }>(`/sessions/${code}/audience-token`, { method: 'POST' }, true),
 
+  startGame: (code: string) =>
+    request<{ started: boolean; playableQuestions: number; minQuestions: number }>(
+      `/sessions/${code}/start`,
+      { method: 'POST' },
+      true,
+    ),
+
+  rotateInvites: (code: string) =>
+    request<{ version: number; candidatePath: string; audiencePath: string }>(
+      `/sessions/${code}/invites/rotate`,
+      { method: 'POST' },
+      true,
+    ),
+
   listQuestions: (params: { status?: string; topic?: string } = {}) => {
     const search = new URLSearchParams();
     if (params.status) search.set('status', params.status);

@@ -45,12 +45,33 @@ beeinflussen:
 | Rolle | Beitritt | Berechtigung |
 | --- | --- | --- |
 | Moderator | Passwort (`/api/auth/moderator`) → signiertes Token | Alle Spielaktionen, Fragenverwaltung |
-| Kandidat | Show-Code + Name, sofern der Selbstbeitritt freigegeben ist → signiertes Ticket | Antwort abgeben |
-| Publikum | Show-Code → signiertes Ticket | Beim Publikumsjoker abstimmen |
+| Kandidat | Signierter Einladungspass (`#/c/<pass>`) → Name und Team → signiertes Ticket | Antwort abgeben |
+| Publikum | Signierter Einladungspass (`#/a/<pass>`) → Geraeteticket | Beim Publikumsjoker abstimmen |
+
+Der **regulaere** Weg fuehrt ueber Einladungslinks; ein Show-Code ist dafuer
+nicht noetig. Der Code-Weg (`#/join`) bleibt als Ersatz erhalten und unterliegt
+weiterhin dem Schalter `openJoin`.
+
+Einladungspasse sind HMAC-signierte, zustandslose Token mit dem Zusatzfeld
+`kind` (`candidate` oder `audience`) und der `inviteVersion` der Show. Sie
+enthalten weder Moderatorenrechte noch die richtige Antwort. `verifyInvite`
+prueft Signatur, Rolle, Show und Version; **Links erneuern** erhoeht die
+`inviteVersion` und macht damit alle bisherigen Passe sofort ungueltig, ohne
+dass ein neues Datenmodell noetig ist. Ein Publikumspass kann keinen
+Kandidatenbeitritt erzeugen und umgekehrt, weil `kind` mitgeprueft wird.
 
 Tickets sind HMAC-signierte, zustandslose Token (`server/src/crypto.ts`). Die
 Signatur deckt die Nutzlast ab, daher ist eine Rollenerhoehung durch Aenderung
 der Nutzlast nicht moeglich. Das ist in `tests/auth.test.ts` abgesichert.
+
+## 4a. Spielstart und Mindestanzahl
+
+`GameEngine.startGame()` verlangt mindestens `MIN_APPROVED_QUESTIONS` (15)
+freigegebene Fragen. Die Zahl stammt aus dem Fragenkatalog
+(`QuestionRepository.countApproved`) und wird zur Laufzeit abgefragt, damit
+Aenderungen an der Freigabe sofort greifen. Vor dem Start liefert
+`startQuestion` einen Fehler, und Kandidaten- und Publikumssicht enthalten keine
+Frage. Damit kann kein Team ohne ausreichenden Fragenkatalog starten.
 
 ## 5. Spielablauf
 
@@ -89,8 +110,11 @@ neu aufgefuellt. Die Rotation ist unabhaengig vom Leiterfortschritt.
 - Passwoerter werden mit scrypt gehasht; der Hash steht in
   `ADMIN_PASSWORD_HASH`, nie das Klartextpasswort.
 - `helmet` setzt Sicherheitsheader. Der Login ist ratenbegrenzt.
-- Der Kandidaten- und Publikumsbeitritt ist standardmaessig gesperrt und wird
-  von der Moderation freigegeben.
+- Der Ersatzweg ueber Show-Code ist standardmaessig gesperrt und wird von der
+  Moderation freigegeben. Der regulaere Weg ueber Einladungslinks ist davon
+  unabhaengig und jederzeit widerrufbar.
+- Einladungspasse sind rollengebunden (`kind`), versionsgebunden und
+  signiert; manipulierte Passe erzeugen keine Berechtigung.
 - Der Container laeuft als Benutzer `quiz` ohne root-Rechte.
 
 ## 9. Testabdeckung
@@ -107,3 +131,5 @@ Die Tests liegen in `server/tests/` und pruefen unter anderem:
 - Auth, Hashes und signierte Tickets (`auth.test.ts`)
 - HTTP-API (`http.test.ts`)
 - End-to-End ueber Socket.IO inklusive Wiederverbindung (`realtime.test.ts`)
+- Einladungslinks, Rollentrennung, 15-Fragen-Grenze und Mehrfachabstimmung
+  (`invites.test.ts`)

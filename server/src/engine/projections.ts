@@ -1,8 +1,10 @@
 import {
+  MIN_APPROVED_QUESTIONS,
   TEAM_IDS,
   type AudienceView,
   type CandidateView,
   type FullQuestion,
+  type InviteLinksView,
   type ModeratorView,
   type PublicQuestion,
   type QuestionRecord,
@@ -51,7 +53,10 @@ function jokerView(engine: GameEngine) {
   };
 }
 
-export function moderatorView(engine: GameEngine): ModeratorView {
+export function moderatorView(
+  engine: GameEngine,
+  options: { invites?: InviteLinksView } = {},
+): ModeratorView {
   const state = engine.state;
   const reveal = state.reveal;
   return {
@@ -72,6 +77,10 @@ export function moderatorView(engine: GameEngine): ModeratorView {
     reveal: reveal ? { ...reveal } : null,
     log: state.log.slice(-40).map((entry) => ({ ...entry })),
     openJoin: state.openJoin,
+    gameStarted: state.gameStarted,
+    playableQuestions: engine.playableQuestionCount(),
+    minQuestions: MIN_APPROVED_QUESTIONS,
+    invites: options.invites ?? { candidatePath: '', audiencePath: '', version: state.inviteVersion },
     certificates: state.certificates.map((c) => ({
       id: c.id,
       playerName: c.playerName,
@@ -101,9 +110,10 @@ export function candidateView(engine: GameEngine, player: Player): CandidateView
     activeTeam: state.activeTeam,
     isDrawn: engine.isDrawn(player.id, player.team),
     isActive: state.activeTeam === player.team,
+    gameStarted: state.gameStarted,
     // Fragen werden nur an das aktive Team uebertragen, und die richtige
-    // Antwort niemals vor der Freigabe.
-    question: question && state.activeTeam === player.team ? publicQuestion(question) : null,
+    // Antwort niemals vor der Freigabe. Vor dem Spielstart gibt es keine Frage.
+    question: question && state.gameStarted && state.activeTeam === player.team ? publicQuestion(question) : null,
     hiddenOptions: state.activeTeam === player.team ? [...state.joker.hiddenOptions] : [],
     yourAnswer: answer && answer.playerId === player.id ? answer.optionIndex : null,
     countdown: engine.countdownView(),
@@ -126,6 +136,7 @@ export function audienceView(engine: GameEngine, voterToken: string | null): Aud
     phase: state.phase,
     activeTeam: state.activeTeam,
     teams: { A: engine.teamView('A'), B: engine.teamView('B') },
+    gameStarted: state.gameStarted,
     // Publikum sieht den Fragetext, aber niemals die richtige Antwort vor der Freigabe.
     question: state.currentQuestion ? publicQuestion(state.currentQuestion) : null,
     countdown: engine.countdownView(),

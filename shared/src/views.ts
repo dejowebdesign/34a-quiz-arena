@@ -126,8 +126,29 @@ export interface ModeratorView {
   certificates: CertificateView[];
   /** Selbstbeitritt fuer Kandidaten freigegeben? */
   openJoin: boolean;
+  /** Erst nach dem ausdruecklichen Spielstart true. */
+  gameStarted: boolean;
+  /** Anzahl freigegebener, damit spielbarer Fragen im Katalog. */
+  playableQuestions: number;
+  /** Mindestanzahl, die fuer einen Spielstart erforderlich ist. */
+  minQuestions: number;
+  /** Signierte Einladungslinks fuer Kandidaten und Publikum. */
+  invites: InviteLinksView;
   /** Serverzeit, damit Clients Drift ausgleichen koennen. */
   serverNow: number;
+}
+
+/**
+ * Einladungslinks. Die Passe sind signiert und widerrufbar; sie enthalten
+ * weder Moderatorenzugang noch die richtige Antwort.
+ */
+export interface InviteLinksView {
+  /** Pfad fuer Kandidaten, z. B. "#/c/<pass>". */
+  candidatePath: string;
+  /** Pfad fuer das Publikum, z. B. "#/a/<pass>". */
+  audiencePath: string;
+  /** Zaehler; erhoeht sich bei jedem Widerruf. */
+  version: number;
 }
 
 export interface CandidateView {
@@ -141,6 +162,8 @@ export interface CandidateView {
   /** true, wenn der eigene Spieler im aktuellen Durchgang gezogen wurde. */
   isDrawn: boolean;
   isActive: boolean;
+  /** Erst nach dem ausdruecklichen Spielstart true. */
+  gameStarted: boolean;
   question: PublicQuestion | null;
   hiddenOptions: number[];
   yourAnswer: number | null;
@@ -159,6 +182,8 @@ export interface AudienceView {
   phase: Phase;
   activeTeam: TeamId;
   teams: Record<TeamId, TeamView>;
+  /** Erst nach dem ausdruecklichen Spielstart true. */
+  gameStarted: boolean;
   question: PublicQuestion | null;
   countdown: CountdownView;
   wheels: Record<TeamId, WheelView>;
@@ -201,6 +226,7 @@ export const C2S = {
   answer: 'candidate:answer',
   audienceVote: 'audience:vote',
   spinWheel: 'moderator:spinWheel',
+  startGame: 'moderator:startGame',
   startQuestion: 'moderator:startQuestion',
   clearQuestion: 'moderator:clearQuestion',
   startCountdown: 'moderator:startCountdown',

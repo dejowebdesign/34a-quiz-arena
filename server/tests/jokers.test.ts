@@ -4,10 +4,11 @@ import { FakeClock, makeQuestion } from './helpers.js';
 
 function setup(hint = 'Fachlicher Hinweis ohne Loesung') {
   const clock = new FakeClock();
-  const engine = new GameEngine({ code: 'JOKER1', name: 'Jokershow', clock, hintProvider: async () => hint });
+  const engine = new GameEngine({ code: 'JOKER1', name: 'Jokershow', clock, hintProvider: async () => hint , approvedQuestionCount: () => 99 });
   const alice = engine.addPlayer('Alice', 'A');
   engine.addPlayer('Bob', 'A');
   const carol = engine.addPlayer('Carol', 'B');
+  engine.startGame();
   return { engine, clock, alice, carol };
 }
 

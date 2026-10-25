@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import {
   DIFFICULTIES,
   LEGAL_STATUS_LABELS,
+  MIN_APPROVED_QUESTIONS,
   QUESTION_STATUS_LABELS,
   TOPIC_LABELS,
   TOPICS,
@@ -14,6 +15,7 @@ import type { Auth } from './auth.js';
 import type { Config } from '../config.js';
 import { CERTIFICATE_DISCLAIMER, CertificateRepository } from '../db/certificates.js';
 import { QuestionRepository, ValidationError, validateQuestionInput } from '../db/questions.js';
+import { GameRuleError } from '../engine/game.js';
 import type { SessionManager } from '../engine/session-manager.js';
 
 export interface RouteDeps {
@@ -97,6 +99,83 @@ export function createRoutes(deps: RouteDeps): Router {
     res.json({ token: deps.sessions.audienceToken(engine) });
   });
 
+  // ------------------------------------------------- Einladungen ueber Passe
+  // Der Moderator erzeugt die Links; die Passe sind signiert und widerrufbar.
+  // Kandidaten und Publikum bekommen je einen eigenen Pass, damit ein
+  // Publikumslink niemals zur Antwortabgabe fuehrt und umgekehrt.
+
+  router.get('/public/sessions/:code/invites', (req, res) => {
+    const engine = deps.sessions.get(req.params.code ?? '');
+    if (!engine) {
+      res.status(404).json({ code: 'not_found', message: 'Show nicht gefunden.' });
+      return;
+    }
+    res.json({
+      code: engine.state.code,
+      name: engine.state.name,
+      openJoin: engine.state.openJoin,
+      candidatePath: `#/c/${deps.sessions.issueInvite(engine, 'candidate')}`,
+      audiencePath: `#/a/${deps.sessions.issueInvite(engine, 'audience')}`,
+    });
+  });
+
+  // Prueft einen Kandidatenpass und liefert die noch noetigen Angaben.
+  router.get('/public/invite/:pass', (req, res) => {
+    const verified = deps.sessions.verifyInvite(req.params.pass ?? '', 'candidate');
+    if (!verified) {
+      res.status(404).json({ code: 'invalid_invite', message: 'Diese Einladung ist ungueltig oder wurde widerrufen.' });
+      return;
+    }
+    const { engine, pass } = verified;
+    const state = engine.state;
+    res.json({
+      sessionCode: state.code,
+      sessionName: state.name,
+      openJoin: state.openJoin,
+      suggestedTeam: pass.team ?? null,
+      teams: (['A', 'B'] as const).map((team) => ({
+        id: team,
+        name: state.teams[team].name,
+        playerCount: engine.teamPlayers(team).length,
+      })),
+    });
+  });
+
+  // Kandidatenbeitritt ueber Einladungspass. Der gueltige, signierte Pass ist
+  // die Berechtigung: kein Show-Code, keine PIN. Die Moderation behaelt die
+  // Kontrolle, weil sie Links jederzeit widerrufen kann.
+  router.post('/public/join/:pass', json, (req, res) => {
+    const verified = deps.sessions.verifyInvite(req.params.pass ?? '', 'candidate');
+    if (!verified) {
+      res.status(404).json({ code: 'invalid_invite', message: 'Diese Einladung ist ungueltig oder wurde widerrufen.' });
+      return;
+    }
+    const { engine, pass } = verified;
+    const { name, team } = (req.body ?? {}) as { name?: string; team?: TeamId };
+    const chosen = team ?? pass.team;
+    if (typeof name !== 'string' || (chosen !== 'A' && chosen !== 'B')) {
+      res.status(400).json({ code: 'bad_request', message: 'Name und Team (A oder B) sind erforderlich.' });
+      return;
+    }
+    try {
+      const { playerId, token } = deps.sessions.registerCandidate(engine, name, chosen);
+      res.status(201).json({ playerId, token, team: chosen, sessionCode: engine.state.code });
+    } catch (error) {
+      res.status(409).json({ code: 'rule_violation', message: error instanceof Error ? error.message : 'Fehler' });
+    }
+  });
+
+  // Publikumszugang ueber Einladungspass. Pro Aufruf entsteht ein eigenes
+  // Geraeteticket, damit Mehrfachabstimmung ueber einen geteilten Link entfaellt.
+  router.post('/public/audience/:pass', (req, res) => {
+    const verified = deps.sessions.verifyInvite(req.params.pass ?? '', 'audience');
+    if (!verified) {
+      res.status(404).json({ code: 'invalid_invite', message: 'Diese Einladung ist ungueltig oder wurde widerrufen.' });
+      return;
+    }
+    res.json({ token: deps.sessions.audienceToken(verified.engine), sessionCode: verified.engine.state.code });
+  });
+
   // Zertifikate sind fuer die ausstellende Person abrufbar (Link/QR auf der
   // Abschlussseite). Sie enthalten keine Geheimnisse.
   router.get('/public/certificates/:id', (req, res) => {
@@ -177,6 +256,52 @@ export function createRoutes(deps: RouteDeps): Router {
       return;
     }
     res.json({ token: deps.sessions.audienceToken(engine) });
+  });
+
+  /**
+   * Show starten. Serverseitige Pruefung: ohne mindestens MIN_APPROVED_QUESTIONS
+   * freigegebene Fragen wird der Start abgelehnt.
+   */
+  router.post('/sessions/:code/start', (req, res) => {
+    const engine = deps.sessions.get(req.params.code ?? '');
+    if (!engine) {
+      res.status(404).json({ code: 'not_found', message: 'Show nicht gefunden.' });
+      return;
+    }
+    try {
+      engine.startGame();
+      res.json({
+        started: true,
+        playableQuestions: engine.playableQuestionCount(),
+        minQuestions: MIN_APPROVED_QUESTIONS,
+      });
+    } catch (error) {
+      if (error instanceof GameRuleError) {
+        res.status(error.code === 'not_enough_questions' ? 409 : 400).json({
+          code: error.code,
+          message: error.message,
+          playableQuestions: engine.playableQuestionCount(),
+          minQuestions: MIN_APPROVED_QUESTIONS,
+        });
+        return;
+      }
+      res.status(400).json({ code: 'bad_request', message: error instanceof Error ? error.message : 'Fehler' });
+    }
+  });
+
+  /** Alle bisher ausgegebenen Einladungslinks widerrufen. */
+  router.post('/sessions/:code/invites/rotate', (req, res) => {
+    const engine = deps.sessions.get(req.params.code ?? '');
+    if (!engine) {
+      res.status(404).json({ code: 'not_found', message: 'Show nicht gefunden.' });
+      return;
+    }
+    engine.revokeInvites();
+    res.json({
+      version: engine.state.inviteVersion,
+      candidatePath: `#/c/${deps.sessions.issueInvite(engine, 'candidate')}`,
+      audiencePath: `#/a/${deps.sessions.issueInvite(engine, 'audience')}`,
+    });
   });
 
   // ------------------------------------------------------------- Fragenkatalog

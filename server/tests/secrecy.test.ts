@@ -5,9 +5,10 @@ import { FakeClock, makeQuestion } from './helpers.js';
 
 function setup() {
   const clock = new FakeClock();
-  const engine = new GameEngine({ code: 'SECRET', name: 'Geheimshow', clock, hintProvider: async () => 'Hinweis' });
+  const engine = new GameEngine({ code: 'SECRET', name: 'Geheimshow', clock, hintProvider: async () => 'Hinweis' , approvedQuestionCount: () => 99 });
   const alice = engine.addPlayer('Alice', 'A');
   const carol = engine.addPlayer('Carol', 'B');
+  engine.startGame();
   return { engine, alice, carol };
 }
 

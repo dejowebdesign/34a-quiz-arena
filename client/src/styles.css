@@ -750,3 +750,316 @@ th {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Teilnehmer- und Publikumsansichten (Ergaenzung).
+   Der dunkelblau-goldene Grundcharakter bleibt erhalten.
+   --------------------------------------------------------------------------- */
+
+/* Rollen-Shell: Teilnehmer und Publikum ohne Studio-Kopfzeile. */
+.app-shell.chrome-none .content {
+  padding: 0;
+  max-width: none;
+}
+
+/* --- Teilnehmeransicht (mobil) ------------------------------------------- */
+
+.candidate-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.candidate-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, rgba(6, 11, 38, 0.96), rgba(6, 11, 38, 0.72));
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.wait-card {
+  text-align: center;
+  padding: 28px 18px;
+}
+
+.wait-card h2 {
+  font-size: clamp(1.3rem, 6vw, 2rem);
+  color: var(--gold);
+}
+
+.wait-text {
+  font-size: clamp(1rem, 4.2vw, 1.25rem);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.question-card {
+  border-top-color: var(--gold);
+}
+
+.mobile-question {
+  font-size: clamp(1.15rem, 5.2vw, 1.7rem);
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+/* Grosse, gut antippbare Antwortflaechen ohne horizontales Scrollen. */
+.mobile-options {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.mobile-options .option {
+  font-size: clamp(1rem, 4.4vw, 1.2rem);
+  padding: 16px 18px;
+  min-height: 64px;
+  text-align: left;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.answer-status {
+  margin: 0 2px;
+  font-size: clamp(0.95rem, 3.8vw, 1.05rem);
+}
+
+.ladder-details {
+  padding: 12px 16px;
+}
+
+.ladder-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* --- Beitritt ------------------------------------------------------------ */
+
+.team-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.team-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+  min-height: 64px;
+  text-align: left;
+}
+
+button.big {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.05rem;
+}
+
+/* --- Publikumsbuehne (16:9, ohne Scrollen) ------------------------------- */
+
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+}
+
+.stage-top {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.stage-body {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(420px, 2.1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.stage-ladders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.ladder-panel {
+  flex: 1 1 0;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ladder-panel.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 30px rgba(247, 201, 72, 0.22);
+}
+
+.compact-ladder {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 3px;
+}
+
+.compact-step {
+  text-align: center;
+  font-size: clamp(0.55rem, 1.1vw, 0.78rem);
+  padding: 4px 0;
+  border-radius: 5px;
+  background: rgba(8, 13, 44, 0.85);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.compact-step.reached {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-dim));
+  color: #241a00;
+  font-weight: 800;
+  border-color: var(--gold);
+}
+
+.compact-step.safety {
+  border-color: var(--info);
+}
+
+.compact-step.current {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 1px;
+}
+
+.stage-question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.question-stage-card {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stage-question-text {
+  font-size: clamp(1.15rem, 2.4vw, 2.1rem);
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.stage-options {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.stage-options .option {
+  font-size: clamp(0.9rem, 1.5vw, 1.15rem);
+  padding: 12px 16px;
+}
+
+.stage-idle {
+  font-size: clamp(1rem, 1.8vw, 1.4rem);
+  text-align: center;
+}
+
+.stage-poll,
+.stage-reveal {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.stage-notice {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80vw;
+}
+
+/* --- Gluecksrad als Overlay --------------------------------------------- */
+
+.wheel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 23, 0.82);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: fade-in 0.25s ease;
+}
+
+.wheel-overlay-card {
+  background: linear-gradient(180deg, rgba(23, 32, 84, 0.98), rgba(9, 14, 46, 0.96));
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  box-shadow: 0 0 60px rgba(247, 201, 72, 0.28);
+  max-width: 90vw;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Einladungszeilen in der Moderation ---------------------------------- */
+
+.invite-row {
+  margin-bottom: 12px;
+}
+
+.invite-row input {
+  min-width: 240px;
+  flex: 1 1 240px;
+  font-size: 0.82rem;
+}
+
+/* Publikumsbuehne auf kleinen Bildschirmen: weiterhin kein horizontales Scrollen. */
+@media (max-width: 900px) {
+  .stage {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .stage-body {
+    grid-template-columns: 1fr;
+  }
+  .compact-ladder {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .stage-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel-overlay {
+    animation: none;
+  }
+}
