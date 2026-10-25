@@ -1,9 +1,16 @@
 # ---------------------------------------------------------------------------
 # 34A Quiz Arena - Standardbereitstellung
 #
+# Dies ist die einzige Compose-Datei des Projekts und die Datei, die der
+# Portainer-Git-Stack verwenden muss (Compose path: docker-compose.yml).
+# Es gibt bewusst keine zweite Compose-Datei. Eine Datei ohne eigenen
+# "image"-Eintrag, die nur als Ergaenzung gedacht war, wurde in Portainer
+# faelschlich als Hauptdatei geladen und mit der Meldung abgelehnt:
+#   service "quiz-arena" has neither an image nor a build context specified
+# Deshalb liegt die vollstaendige Konfiguration jetzt an genau einer Stelle.
+#
 # Das Image kommt aus GitHub Container Registry. Es wird nichts lokal gebaut.
-# Diese Datei ist der Standard und funktioniert ohne externes Docker-Netz.
-# Sie ist die Datei, die ein Portainer-Git-Stack verwendet.
+# Ein externes Docker-Netz ist nicht erforderlich.
 #
 # Schnellstart auf dem Zielserver:
 #   1. Stack in Portainer anlegen, Compose-Pfad: docker-compose.yml
@@ -13,10 +20,6 @@
 #
 # Aktualisieren:
 #   Portainer: Stack oeffnen -> Pull and redeploy
-#
-# Fuer den Betrieb mit dem externen Proxy-Netz "web" (Zoraxy als Container)
-# zusaetzlich die Override-Datei verwenden:
-#   docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
 #
 # Ports: Der Host-Port ist ueber QUIZ_PORT konfigurierbar (Standard 3002), der
 # Container-Port bleibt 3000. Auf dem Umbrel-Host sind 3000 und 3001 bereits
