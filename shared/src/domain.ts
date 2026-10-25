@@ -108,5 +108,11 @@ export const DEFAULT_SAFETY_LEVELS: readonly number[] = [5, 10];
 export const COUNTDOWN_MS = 10_000;
 /** Feste Anzahl Antwortoptionen pro Frage. */
 export const OPTION_COUNT = 4;
+/**
+ * Mindestanzahl freigegebener Fragen, damit eine Show gestartet werden darf.
+ * Die Leiter hat 15 Stufen; ohne mindestens 15 spielbare Fragen waere ein
+ * vollstaendiger Durchgang nicht moeglich.
+ */
+export const MIN_APPROVED_QUESTIONS = LADDER_MAX_LEVEL;
 
 export const TEAM_LABELS: Record<TeamId, string> = { A: 'Team A', B: 'Team B' };

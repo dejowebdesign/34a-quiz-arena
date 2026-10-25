@@ -40,18 +40,45 @@ const NAV = [
   { to: '#/admin', label: 'Fragenverwaltung' },
 ];
 
+/**
+ * Rollen-Shell. Teilnehmer und Publikum sehen bewusst keine Navigation zur
+ * Moderation oder Fragenverwaltung: ihre Oberflaeche bleibt auf die eigene
+ * Quiz- beziehungsweise Uebertragungsansicht beschraenkt.
+ */
+type Chrome = 'full' | 'minimal' | 'none';
+
+function chromeFor(path: string): Chrome {
+  if (path.startsWith('/c/') || path.startsWith('/a/')) return 'none';
+  if (path === '/candidate' || path === '/audience' || path === '/join') return 'minimal';
+  return 'full';
+}
+
+/** Liest den Einladungspass aus einem Pfad wie "/c/<pass>" oder "/a/<pass>". */
+export function passFromPath(path: string, prefix: string): string | null {
+  if (!path.startsWith(prefix)) return null;
+  const value = path.slice(prefix.length);
+  return value.length > 0 ? value : null;
+}
+
 export function App() {
   const route = useHashRoute();
+  const chrome = chromeFor(route.path);
 
   let page: JSX.Element;
-  if (route.path === '/join') {
-    page = <JoinView route={route} />;
+  const candidatePass = passFromPath(route.path, '/c/');
+  const audiencePass = passFromPath(route.path, '/a/');
+  if (candidatePass) {
+    page = <JoinView route={route} pass={candidatePass} />;
+  } else if (audiencePass) {
+    page = <AudienceView route={route} pass={audiencePass} />;
+  } else if (route.path === '/join') {
+    page = <JoinView route={route} pass={null} />;
   } else if (route.path === '/moderator') {
     page = <ModeratorView route={route} />;
   } else if (route.path === '/candidate') {
     page = <CandidateView route={route} />;
   } else if (route.path === '/audience') {
-    page = <AudienceView route={route} />;
+    page = <AudienceView route={route} pass={null} />;
   } else if (route.path === '/admin') {
     page = <AdminQuestions route={route} />;
   } else if (route.path.startsWith('/certificate/')) {
@@ -61,19 +88,28 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          34A <span>Quiz Arena</span>
-        </div>
-        <nav className="nav">
-          {NAV.map((item) => (
-            <a key={item.to} href={item.to} className={route.path === item.to.slice(1) ? 'active' : ''}>
-              {item.label}
-            </a>
-          ))}
-        </nav>
-      </header>
+    <div className={`app-shell chrome-${chrome}`}>
+      {chrome !== 'none' && (
+        <header className="topbar">
+          <div className="brand">
+            34A <span>Quiz Arena</span>
+          </div>
+          {chrome === 'full' && (
+            <nav className="nav">
+              {NAV.map((item) => (
+                <a key={item.to} href={item.to} className={route.path === item.to.slice(1) ? 'active' : ''}>
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          )}
+          {chrome === 'minimal' && (
+            <nav className="nav">
+              <a href="#/">Start</a>
+            </nav>
+          )}
+        </header>
+      )}
       <main className="content">{page}</main>
     </div>
   );

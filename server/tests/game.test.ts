@@ -4,10 +4,11 @@ import { drawnPlayer, FakeClock, makeQuestion } from './helpers.js';
 
 function setup() {
   const clock = new FakeClock();
-  const engine = new GameEngine({ code: 'TEST01', name: 'Testshow', clock, hintProvider: async () => 'Hinweis' });
+  const engine = new GameEngine({ code: 'TEST01', name: 'Testshow', clock, hintProvider: async () => 'Hinweis' , approvedQuestionCount: () => 99 });
   const alice = engine.addPlayer('Alice', 'A');
   const bob = engine.addPlayer('Bob', 'A');
   const carol = engine.addPlayer('Carol', 'B');
+  engine.startGame();
   return { engine, clock, alice, bob, carol };
 }
 

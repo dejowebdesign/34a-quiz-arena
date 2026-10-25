@@ -10,6 +10,7 @@ import {
   DEFAULT_SAFETY_LEVELS,
   JOKER_LABELS,
   LADDER_MAX_LEVEL,
+  MIN_APPROVED_QUESTIONS,
   OPTION_COUNT,
   TEAM_IDS,
   TEAM_LABELS,
@@ -98,6 +99,13 @@ export interface GameState {
   certificates: CertificateRecord[];
   /** Erlaubt Kandidaten den Selbstbeitritt waehrend der Lobby. Standard: aus. */
   openJoin: boolean;
+  /** Erst nach dem ausdruecklichen Spielstart true. Vorher sind Fragen gesperrt. */
+  gameStarted: boolean;
+  /**
+   * Zaehler fuer ausgestellte Einladungen. Wird er erhoeht, sind alle bisher
+   * ausgegebenen Einladungspasse sofort ungueltig (Widerruf ohne Datenmodell).
+   */
+  inviteVersion: number;
 }
 
 export interface Clock {
@@ -114,6 +122,14 @@ export const systemClock: Clock = {
 
 export interface HintProvider {
   (question: QuestionRecord): Promise<string>;
+}
+
+/**
+ * Liefert die Anzahl aktuell spielbarer Fragen (freigegeben und gueltig). Die
+ * Pruefung liegt serverseitig; die Datenquelle ist der Fragenkatalog.
+ */
+export interface ApprovedQuestionCountProvider {
+  (): number;
 }
 
 export class GameRuleError extends Error {
@@ -152,10 +168,18 @@ export class GameEngine {
   private readonly listeners = new Set<ChangeListener>();
   private readonly clock: Clock;
   private readonly hintProvider: HintProvider;
+  private readonly approvedQuestionCount: ApprovedQuestionCountProvider;
 
-  constructor(options: { code: string; name: string; clock?: Clock; hintProvider?: HintProvider }) {
+  constructor(options: {
+    code: string;
+    name: string;
+    clock?: Clock;
+    hintProvider?: HintProvider;
+    approvedQuestionCount?: ApprovedQuestionCountProvider;
+  }) {
     this.clock = options.clock ?? systemClock;
     this.hintProvider = options.hintProvider ?? (async () => '');
+    this.approvedQuestionCount = options.approvedQuestionCount ?? (() => 0);
     this.state = {
       code: options.code,
       name: options.name,
@@ -172,6 +196,8 @@ export class GameEngine {
       log: [],
       certificates: [],
       openJoin: false,
+      gameStarted: false,
+      inviteVersion: 0,
     };
     this.log(`Show "${options.name}" angelegt (Code ${options.code}).`);
   }
@@ -266,8 +292,42 @@ export class GameEngine {
 
   // -------------------------------------------------------------- Fragen
 
+  /** Anzahl aktuell spielbarer (freigegebener) Fragen. */
+  playableQuestionCount(): number {
+    return this.approvedQuestionCount();
+  }
+
+  /**
+   * Startet die Show. Erst ab hier duerfen Fragen gestartet werden. Die Show
+   * laesst sich nur starten, wenn mindestens die geforderte Anzahl
+   * freigegebener Fragen vorhanden ist; die Pruefung erfolgt serverseitig.
+   */
+  startGame(minQuestions: number = MIN_APPROVED_QUESTIONS): void {
+    if (this.state.gameStarted) {
+      throw new GameRuleError('already_started', 'Die Show wurde bereits gestartet.');
+    }
+    const available = this.approvedQuestionCount();
+    if (available < minQuestions) {
+      throw new GameRuleError(
+        'not_enough_questions',
+        `Die Show kann nicht gestartet werden: ${available} von mindestens ${minQuestions} freigegebenen Fragen vorhanden.`,
+      );
+    }
+    this.state.gameStarted = true;
+    this.emit(`Show gestartet. ${available} freigegebene Fragen verfuegbar.`);
+  }
+
+  /** Widerruft alle bisher ausgestellten Einladungspasse. */
+  revokeInvites(): void {
+    this.state.inviteVersion += 1;
+    this.emit('Einladungen widerrufen - bisherige Links sind ungueltig.');
+  }
+
   /** Startet eine Frage fuer das aktive Team. Nur freigegebene Fragen sind erlaubt. */
   startQuestion(question: QuestionRecord): void {
+    if (!this.state.gameStarted) {
+      throw new GameRuleError('game_not_started', 'Die Show wurde noch nicht gestartet.');
+    }
     if (question.status !== 'approved') {
       throw new GameRuleError('question_not_approved', 'Nur freigegebene Fragen duerfen gestartet werden.');
     }

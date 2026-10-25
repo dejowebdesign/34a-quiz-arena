@@ -3,6 +3,7 @@ import { Server as SocketServer, type Socket } from 'socket.io';
 import {
   C2S,
   S2C,
+  type InviteLinksView,
   type Role,
   type TeamId,
   type JokerType,
@@ -94,7 +95,7 @@ export function createRealtime(server: HttpServer, deps: Deps) {
     const engine = deps.sessions.get(data.sessionCode);
     if (!engine) return;
     if (data.role === 'moderator') {
-      socket.emit(S2C.view, moderatorView(engine));
+      socket.emit(S2C.view, moderatorView(engine, { invites: invitesFor(engine) }));
       return;
     }
     if (data.role === 'candidate' && data.playerId) {
@@ -109,6 +110,18 @@ export function createRealtime(server: HttpServer, deps: Deps) {
     if (data.role === 'audience') {
       socket.emit(S2C.view, audienceView(engine, data.audienceToken));
     }
+  }
+
+  /**
+   * Einladungspfade fuer die Moderatorensicht. Die Passe werden nur hier
+   * signiert und enthalten weder Moderatorenrechte noch die richtige Antwort.
+   */
+  function invitesFor(engine: GameEngine): InviteLinksView {
+    return {
+      candidatePath: `#/c/${deps.sessions.issueInvite(engine, 'candidate')}`,
+      audiencePath: `#/a/${deps.sessions.issueInvite(engine, 'audience')}`,
+      version: engine.state.inviteVersion,
+    };
   }
 
   function requireModerator(socket: Socket): boolean {
@@ -280,6 +293,7 @@ export function createRealtime(server: HttpServer, deps: Deps) {
         pushView(socket);
       };
 
+    socket.on(C2S.startGame, moderatorAction<void>((engine) => engine.startGame()));
     socket.on(C2S.spinWheel, moderatorAction<{ team?: TeamId }>((engine, payload) => {
       engine.spinWheel(payload?.team ?? engine.state.activeTeam);
     }));

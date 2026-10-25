@@ -44,6 +44,9 @@ export function createApp(options: CreateAppOptions = {}): AppContext {
     secret: config.sessionSecret,
     certificates,
     hintProvider: createHintProvider(config),
+    // Die Anzahl spielbarer Fragen stammt aus dem Katalog und wird zur Laufzeit
+    // abgefragt, damit Aenderungen an der Freigabe sofort greifen.
+    approvedQuestionCount: () => questions.countApproved(),
   });
 
   const app = express();

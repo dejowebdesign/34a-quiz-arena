@@ -71,7 +71,8 @@ describe('Echtzeit-Integration ueber Socket.IO', () => {
       .expect(201);
     const code = created.body.code as string;
 
-    // Eine Frage anlegen und freigeben.
+    // Fragen anlegen und freigeben. Die Show verlangt mindestens 15 spielbare
+    // Fragen, deshalb wird hier derselbe Umfang wie im Regelbetrieb erzeugt.
     const question = {
       topic: 'oeffentliches_recht_gewerberecht',
       difficulty: 'leicht',
@@ -84,12 +85,21 @@ describe('Echtzeit-Integration ueber Socket.IO', () => {
       sourceNote: 'Gesetzestext, Stand 2024',
       status: 'approved',
     };
-    const created2 = await request(context.app)
-      .post('/api/questions')
+    let questionId = 0;
+    for (let i = 0; i < 15; i += 1) {
+      const createdQuestion = await request(context.app)
+        .post('/api/questions')
+        .set('authorization', `Bearer ${token}`)
+        .send({ ...question, text: `${question.text} (Variante ${i + 1})` })
+        .expect(201);
+      if (i === 0) questionId = createdQuestion.body.question.id as number;
+    }
+
+    // Show starten - erst ab hier sind Fragen freigegeben.
+    await request(context.app)
+      .post(`/api/sessions/${code}/start`)
       .set('authorization', `Bearer ${token}`)
-      .send(question)
-      .expect(201);
-    const questionId = created2.body.question.id as number;
+      .expect(200);
 
     // Zwei Kandidaten (je Team) und ein Publikumsteilnehmer.
     const playerA = await request(context.app)
@@ -276,5 +286,89 @@ describe('Echtzeit-Integration ueber Socket.IO', () => {
     moderator.emit(C2S.activateJoker, { type: 'fifty', team: 'A' });
     await new Promise((resolve) => setTimeout(resolve, 250));
     expect(jokerErrors).toContain('joker_used');
+  });
+  it('uebertraegt eine neue Frage ohne Neuladen und synchronisiert das aktive Team', async () => {
+    const ctx = await prepare();
+
+    const moderator = connect(baseUrl);
+    sockets.push(moderator);
+    moderator.emit(C2S.moderatorJoin, { token: ctx.token, code: ctx.code });
+    await nextView<ModeratorView>(moderator, (v) => (v as ModeratorView).role === 'moderator');
+
+    // Kandidat in Team A beobachtet die Sicht live.
+    const candidateA = connect(baseUrl);
+    sockets.push(candidateA);
+    candidateA.emit(C2S.candidateJoin, { ticket: ctx.playerA.token });
+    await nextView<CandidateView>(candidateA, (v) => (v as CandidateView).role === 'candidate');
+
+    // Team A ist zu Beginn aktiv.
+    moderator.emit(C2S.spinWheel, { team: 'A' });
+    await nextView<ModeratorView>(moderator, (v) => (v as ModeratorView).wheels.A.lastDrawn !== null);
+    moderator.emit(C2S.startQuestion, { questionId: ctx.questionId });
+    const questionA = await nextView<CandidateView>(candidateA, (v) => (v as CandidateView).question !== null);
+    expect(questionA.isActive).toBe(true);
+    expect(questionA.question?.text).toContain('§ 34a GewO');
+
+    // Antwort abgeben und freigeben, damit die Leiter aufsteigt.
+    candidateA.emit(C2S.answer, { optionIndex: 0 });
+    await nextView<ModeratorView>(moderator, (v) => (v as ModeratorView).answers.A !== null);
+    moderator.emit(C2S.reveal);
+    const afterReveal = await nextView<ModeratorView>(
+      moderator,
+      (v) => (v as ModeratorView).teams.A.level === 1,
+    );
+    expect(afterReveal.teams.A.level).toBe(1);
+    expect(afterReveal.teams.B.level).toBe(0);
+
+    // Teamwechsel: das aktive Team aendert sich synchron in allen Ansichten.
+    const switched = nextView<CandidateView>(
+      candidateA,
+      (v) => (v as CandidateView).activeTeam === 'B',
+    );
+    moderator.emit(C2S.nextTeam);
+    const teamView = await switched;
+    expect(teamView.activeTeam).toBe('B');
+    expect(teamView.isActive).toBe(false);
+  });
+
+  it('stellt den Countdown nach einer Wiederverbindung mit der richtigen Restzeit wieder her', async () => {
+    const ctx = await prepare();
+
+    const moderator = connect(baseUrl);
+    sockets.push(moderator);
+    moderator.emit(C2S.moderatorJoin, { token: ctx.token, code: ctx.code });
+    await nextView<ModeratorView>(moderator, (v) => (v as ModeratorView).role === 'moderator');
+
+    moderator.emit(C2S.spinWheel, { team: 'A' });
+    await nextView<ModeratorView>(moderator, (v) => (v as ModeratorView).wheels.A.lastDrawn !== null);
+    moderator.emit(C2S.startQuestion, { questionId: ctx.questionId });
+    await nextView<ModeratorView>(moderator, (v) => (v as ModeratorView).currentQuestion !== null);
+
+    const candidate = connect(baseUrl);
+    sockets.push(candidate);
+    candidate.emit(C2S.candidateJoin, { ticket: ctx.playerA.token });
+    await nextView<CandidateView>(candidate, (v) => (v as CandidateView).question !== null);
+
+    // Countdown starten, dann Verbindung trennen.
+    moderator.emit(C2S.startCountdown);
+    const running = await nextView<ModeratorView>(
+      moderator,
+      (v) => (v as ModeratorView).countdown.state === 'running',
+    );
+    expect(running.countdown.endsAt).not.toBeNull();
+    candidate.close();
+
+    // Neue Verbindung: der Countdown muss weiterlaufen (serverseitig gesteuert).
+    const reconnected = connect(baseUrl);
+    sockets.push(reconnected);
+    reconnected.emit(C2S.candidateJoin, { ticket: ctx.playerA.token });
+    const restored = await nextView<CandidateView>(
+      reconnected,
+      (v) => (v as CandidateView).role === 'candidate',
+    );
+    expect(restored.countdown.state).toBe('running');
+    expect(restored.countdown.endsAt).not.toBeNull();
+    // Die richtige Antwort bleibt weiterhin verborgen.
+    expect(restored.reveal).toBeNull();
   });
 });

@@ -42,17 +42,19 @@ export function HomeView({ route }: { route: Route }) {
         <section className="card">
           <h2>Kandidat</h2>
           <p className="muted">
-            Mit Show-Code und Namen beitreten. Die Frage erscheint privat auf dem eigenen Geraet.
+            Im Regelfall ueber den Einladungslink der Moderation: Link oeffnen, Namen eingeben, Team waehlen - fertig,
+            ohne Show-Code. Die Frage erscheint privat auf dem eigenen Geraet.
           </p>
           <button className="primary" onClick={() => route.navigate('#/join')}>
-            Als Kandidat beitreten
+            Ohne Link: mit Show-Code beitreten
           </button>
         </section>
 
         <section className="card">
           <h2>Publikum</h2>
           <p className="muted">
-            Anzeige fuer die Zoom-Uebertragung und Abstimmung beim Publikumsjoker.
+            Fuer die Zoom-Uebertragung: oeffne den Publikumslink der Moderation. Ohne Link geht es ersatzweise mit
+            Show-Code.
           </p>
           <button className="primary" onClick={() => route.navigate('#/audience')}>
             Publikumsansicht

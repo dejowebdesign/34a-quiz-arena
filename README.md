@@ -21,6 +21,11 @@ Publikum sieht die Uebertragungsansicht.
 - Countdown der letzten zehn Sekunden, ausdruecklich gestartet, synchron
   angezeigt, waehrend eines Jokers pausierbar
 - Drei getrennte Ansichten: Moderation, Kandidat, Publikum
+- Teilnehmer- und Publikumszugang ueber signierte, widerrufbare Einladungslinks
+  (kein manueller Show-Code noetig), optional mit QR-Code
+- Mindestens 15 freigegebene Fragen erforderlich, bevor eine Show startet
+- Publikumsansicht im 16:9-Buehnenlayout fuer die Zoom-Uebertragung; das
+  Gluecksrad erscheint nur waehrend der Drehung als Overlay
 - Geschuetzte Fragenverwaltung mit Import, Freigabe und Pruefstatus fuer
   Rechtsangaben
 - Leistungszertifikat bei Stufe 15 mit Pflichthinweis
@@ -109,11 +114,35 @@ wird lokal gebaut. Einzelheiten in [`docs/INSTALL.md`](docs/INSTALL.md).
 | --- | --- |
 | `#/` | Startseite und Systemstatus |
 | `#/moderator` | Show anlegen, Gewinnleitern, Rad, Joker, Countdown, Freigabe |
-| `#/join` | Kandidatenbeitritt mit Show-Code |
+| `#/c/<pass>` | **Regulaerer Teilnehmerlink**: Beitritt ohne Show-Code |
+| `#/join` | Ersatzweg: Kandidatenbeitritt mit Show-Code |
 | `#/candidate` | Private Frage und verbindliche Antwortabgabe |
-| `#/audience` | Uebertragungsansicht und Abstimmung beim Publikumsjoker |
+| `#/a/<pass>` | **Regulaerer Publikumslink**: direkt zur Uebertragungsansicht |
+| `#/audience` | Ersatzweg: Publikumsansicht mit Show-Code |
 | `#/admin` | Geschuetzte Fragenverwaltung |
 | `#/certificate/<id>` | Aufrufbares Leistungszertifikat |
+
+## Zugang fuer Teilnehmer und Publikum
+
+Die Moderation erzeugt in der Ansicht **Einladungen** zwei Links und kann sie
+per Knopfdruck kopieren oder als QR-Code anzeigen:
+
+- **Teilnehmerlink** (`#/c/<pass>`): Link oeffnen, Namen eingeben, Team waehlen
+  - direkt geht es zur eigenen Quizansicht. Ein Show-Code ist nicht noetig.
+- **Publikumslink** (`#/a/<pass>`): fuehrt direkt zur Uebertragungsansicht.
+
+Die Passe sind signiert (HMAC ueber das Sitzungsgeheimnis), enthalten weder
+Moderatorenrechte noch die richtige Antwort und sind ueber **Links erneuern**
+jederzeit widerrufbar. Ein widerrufener oder veraenderter Link wird mit einer
+klaren Meldung abgewiesen. Die serverseitigen Berechtigungspruefungen bleiben
+unveraendert bestehen.
+
+## Show starten
+
+Eine Show startet erst, wenn mindestens 15 freigegebene Fragen vorliegen
+(`MIN_APPROVED_QUESTIONS`). Die Pruefung erfolgt serverseitig; die
+Moderationsansicht zeigt die verfuegbare Anzahl und eine verstaendliche
+Fehlermeldung. Nicht freigegebene Fragen zaehlen nicht mit.
 
 ## Entwicklung
 
@@ -127,7 +156,7 @@ npm run dev:client      # Port 5173 mit Proxy auf 3000
 ## Tests und Pruefungen
 
 ```bash
-npm test           # 100 Tests
+npm test           # 118 Tests
 npm run typecheck  # TypeScript in allen Workspaces
 npm run build      # shared, Server und Client
 ```
@@ -135,7 +164,10 @@ npm run build      # shared, Server und Client
 Die Tests decken die Spielregeln (Aufstieg, Rueckfall, Sicherheitsstufen), die
 Kandidatenrotation des Gluecksrads, den Jokerverbrauch, die Zeitsteuerung, die
 Geheimhaltung der richtigen Antwort, die Zugangskontrolle und den vollstaendigen
-Ablauf ueber Socket.IO inklusive Wiederverbindung ab.
+Ablauf ueber Socket.IO inklusive Wiederverbindung ab. Zusaetzlich geprueft
+werden die Einladungslinks (Beitritt ohne PIN, Widerruf, Rollentrennung), die
+Mindestanzahl von 15 Fragen (Grenzfaelle 14 und 15) sowie die
+Mehrfachabstimmung beim Publikumsjoker.
 
 ## Dokumentation
 

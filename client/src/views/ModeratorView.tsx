@@ -125,12 +125,43 @@ export function ModeratorView({ route }: { route: Route }) {
 
   const copyJoinLink = async () => {
     if (!sessionCode) return;
-    const url = `${window.location.origin}/#/join`;
+    const candidateUrl = `${window.location.origin}/${view?.invites.candidatePath ?? '#/join'}`;
     try {
-      await navigator.clipboard.writeText(`${url} - Show-Code: ${sessionCode}`);
-      setNotice('Beitrittslink und Show-Code kopiert.');
+      await navigator.clipboard.writeText(candidateUrl);
+      setNotice('Teilnehmerlink kopiert.');
     } catch {
-      setNotice(`Show-Code: ${sessionCode}`);
+      setNotice(candidateUrl);
+    }
+  };
+
+  const copyAudienceLink = async () => {
+    if (!sessionCode) return;
+    const audienceUrl = `${window.location.origin}/${view?.invites.audiencePath ?? '#/audience'}`;
+    try {
+      await navigator.clipboard.writeText(audienceUrl);
+      setNotice('Publikumslink kopiert.');
+    } catch {
+      setNotice(audienceUrl);
+    }
+  };
+
+  const rotateInvites = async () => {
+    if (!sessionCode) return;
+    try {
+      await api.rotateInvites(sessionCode);
+      setNotice('Neue Links erzeugt. Bisherige Links sind jetzt ungueltig.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Links konnten nicht erneuert werden.');
+    }
+  };
+
+  const startGame = async () => {
+    if (!sessionCode) return;
+    setError(null);
+    try {
+      await api.startGame(sessionCode);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Show konnte nicht gestartet werden.');
     }
   };
 
@@ -201,7 +232,10 @@ export function ModeratorView({ route }: { route: Route }) {
           </div>
           <div className="row">
             <button className="small" onClick={copyJoinLink}>
-              Beitritt teilen
+              Teilnehmerlink
+            </button>
+            <button className="small" onClick={copyAudienceLink}>
+              Publikumslink
             </button>
             <button
               className="small"
@@ -229,6 +263,58 @@ export function ModeratorView({ route }: { route: Route }) {
 
       {view && (
         <>
+          <section className="card">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0 }}>Show starten</h2>
+              <span className={view.gameStarted ? 'pill ok' : 'pill warn'}>
+                {view.gameStarted ? 'gestartet' : 'noch nicht gestartet'}
+              </span>
+            </div>
+            <p className="muted" style={{ marginTop: 6 }}>
+              Verfuegbare freigegebene Fragen: <strong>{view.playableQuestions}</strong> von mindestens{' '}
+              <strong>{view.minQuestions}</strong>.
+            </p>
+            {!view.gameStarted && view.playableQuestions < view.minQuestions && (
+              <div className="notice error">
+                Die Show kann erst starten, wenn mindestens {view.minQuestions} Fragen freigegeben sind. Es fehlen noch{' '}
+                {view.minQuestions - view.playableQuestions}.
+              </div>
+            )}
+            <div className="row" style={{ marginTop: 10 }}>
+              <button
+                className="primary"
+                onClick={startGame}
+                disabled={view.gameStarted || view.playableQuestions < view.minQuestions}
+              >
+                {view.gameStarted ? 'Show laeuft' : 'Show starten'}
+              </button>
+              <span className="muted">Fragen sind erst nach dem Start freigegeben.</span>
+            </div>
+          </section>
+
+          <section className="card">
+            <h2>Einladungen</h2>
+            <p className="muted">
+              Diese Links direkt in Zoom oder Chat teilen. Teilnehmer und Publikum brauchen keinen Show-Code.
+            </p>
+            <InviteRow
+              label="Teilnehmerlink"
+              path={view.invites.candidatePath}
+              onCopy={copyJoinLink}
+            />
+            <InviteRow
+              label="Publikumslink"
+              path={view.invites.audiencePath}
+              onCopy={copyAudienceLink}
+            />
+            <div className="row" style={{ marginTop: 10 }}>
+              <button className="small danger" onClick={rotateInvites}>
+                Links erneuern (alte widerrufen)
+              </button>
+              <span className="muted">Version {view.invites.version}</span>
+            </div>
+          </section>
+
           <section className="card">
             <h2>Zeitsteuerung</h2>
             <Countdown countdown={view.countdown} serverNow={view.serverNow} />
@@ -451,8 +537,11 @@ export function ModeratorView({ route }: { route: Route }) {
                 className={view.openJoin ? 'primary' : ''}
                 onClick={() => send(C2S.setOpenJoin, { open: !view.openJoin })}
               >
-                Selbstbeitritt: {view.openJoin ? 'freigegeben' : 'gesperrt'}
+                Code-Beitritt: {view.openJoin ? 'freigegeben' : 'gesperrt'}
               </button>
+              <span className="muted">
+                Gilt nur fuer den Ersatzweg mit Show-Code. Einladungslinks funktionieren unabhaengig davon.
+              </span>
             </div>
 
             <div className="grid two" style={{ marginTop: 12 }}>
@@ -535,5 +624,50 @@ export function ModeratorView({ route }: { route: Route }) {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Zeile mit Einladungslink: vollstaendige URL, Kopierknopf und optionaler
+ * QR-Code. Der QR-Code wird lokal erzeugt (Abhaengigkeit `qrcode`), damit der
+ * signierte Link das Geraet nicht verlaesst.
+ */
+function InviteRow({ label, path, onCopy }: { label: string; path: string; onCopy: () => void }) {
+  const [showQr, setShowQr] = useState(false);
+  const [qrSrc, setQrSrc] = useState<string | null>(null);
+  const url = path ? `${window.location.origin}/${path}` : '';
+
+  useEffect(() => {
+    if (!showQr || !url) return;
+    let cancelled = false;
+    import('qrcode')
+      .then((QR) => QR.toDataURL(url, { width: 180, margin: 1 }))
+      .then((dataUrl) => {
+        if (!cancelled) setQrSrc(dataUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setQrSrc(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showQr, url]);
+
+  return (
+    <div className="invite-row">
+      <label>{label}</label>
+      <div className="row">
+        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+        <button className="small primary" onClick={onCopy} type="button">
+          Kopieren
+        </button>
+        <button className="small" onClick={() => setShowQr((v) => !v)} type="button" disabled={!url}>
+          {showQr ? 'QR ausblenden' : 'QR-Code'}
+        </button>
+      </div>
+      {showQr && qrSrc && (
+        <img className="qr" src={qrSrc} alt={`QR-Code fuer ${label}`} width={180} height={180} />
+      )}
+    </div>
   );
 }
