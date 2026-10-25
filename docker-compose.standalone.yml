@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------
+# 34A Quiz Arena - Bereitstellung ohne externes Netz
+# Fuer den ersten Test oder wenn der Reverse Proxy ausserhalb von Docker laeuft.
+#
+#   docker compose -f docker-compose.standalone.yml up -d --build
+# ---------------------------------------------------------------------------
+services:
+  quiz-arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: quiz-arena-34a:1.0.0
+    container_name: quiz-arena
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_PATH: /app/data/quiz-arena.db
+      TRUST_PROXY: "true"
+    volumes:
+      - quiz-data:/app/data
+    ports:
+      - "3000:3000"
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  quiz-data:
+    driver: local

@@ -1,0 +1,24 @@
+{
+  "name": "quiz-arena-34a",
+  "version": "1.0.0",
+  "private": true,
+  "description": "34A Quiz Arena - Multiplayer-Quizshow zur Vorbereitung auf die Sachkundepruefung nach \u00a7 34a GewO",
+  "license": "MIT",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client",
+    "build:shared": "npm run build --workspace shared",
+    "typecheck": "npm run build --workspace shared && npm run typecheck --workspace server && npm run typecheck --workspace client",
+    "test": "npm run build --workspace shared && npm run test --workspace server",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "start": "node server/dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
