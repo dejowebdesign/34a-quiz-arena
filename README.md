@@ -75,14 +75,13 @@ cp .env.example .env
 openssl rand -hex 32                                  # in SESSION_SECRET eintragen
 node server/scripts/hash-password.mjs "DeinPasswort"  # in ADMIN_PASSWORD_HASH eintragen
 
-# Variante A: mit externem Proxy-Netz "web" (Zoraxy, Traefik)
-docker network create web
+# Standardbetrieb: ohne externes Docker-Netz
 docker compose pull
 docker compose up -d
 
-# Variante B: ohne externes Netz (Portainer, Umbrel, erster Test)
-docker compose -f docker-compose.standalone.yml pull
-docker compose -f docker-compose.standalone.yml up -d
+# Nur wenn Zoraxy als Container ueber das Netz "web" angebunden wird:
+docker network create web
+docker compose -f docker-compose.yml -f docker-compose.zoraxy.yml up -d
 ```
 
 Hinweis zum Hash: In `.env` muss der scrypt-Hash mit doppelten Dollarzeichen
@@ -96,14 +95,15 @@ stehen, sonst schneidet Compose ihn ab und die Anmeldung schlaegt fehl:
 Im Portainer-Formular dagegen die einfachen Dollarzeichen verwenden. Details in
 [`docs/INSTALL.md`](docs/INSTALL.md), Abschnitt 2.
 
-Aufruf unter `http://<server>:3000`.
+Aufruf unter `http://<server>:3002`. Der Host-Port ist ueber `QUIZ_PORT`
+konfigurierbar (Standard 3002); der Container-Port bleibt 3000.
 
-Welche Variante gilt:
+Welche Datei gilt:
 
 | Datei | Verwenden wenn |
 | --- | --- |
-| `docker-compose.yml` | Ein Reverse Proxy im Docker-Netz `web` laeuft und den Container ueber `quiz-arena:3000` erreicht |
-| `docker-compose.standalone.yml` | Kein solches Netz vorhanden ist, zum Beispiel auf Umbrel oder beim ersten Test |
+| `docker-compose.yml` | Immer. Standardbetrieb, ohne externes Netz. Das ist die Datei fuer einen Portainer-Git-Stack |
+| `docker-compose.zoraxy.yml` | Zusaetzlich, wenn Zoraxy als Container den Quiz-Container ueber das gemeinsame Netz `web` erreichen soll |
 
 Beide Dateien laden `ghcr.io/dejowebdesign/34a-quiz-arena:latest` und bauen
 nichts lokal. Einzelheiten in [`docs/INSTALL.md`](docs/INSTALL.md).
